@@ -59,11 +59,25 @@ export default function SelectProjectScreen() {
     router.push('/(tabs)/(home)/');
   };
 
+  const handleBack = () => {
+    router.back();
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Select Project</Text>
-        <Text style={styles.subtitle}>Where are you working today?</Text>
+        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+          <IconSymbol
+            ios_icon_name="chevron.left"
+            android_material_icon_name="arrow-back"
+            size={24}
+            color={colors.text}
+          />
+        </TouchableOpacity>
+        <View style={styles.headerTextContainer}>
+          <Text style={styles.title}>Select Project</Text>
+          <Text style={styles.subtitle}>Where are you working today?</Text>
+        </View>
       </View>
 
       <ScrollView
@@ -136,14 +150,23 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'android' ? 48 : 60,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 20,
     paddingBottom: 20,
+    gap: 12,
+  },
+  backButton: {
+    padding: 8,
+  },
+  headerTextContainer: {
+    flex: 1,
   },
   title: {
     fontSize: 32,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: 8,
+    marginBottom: 4,
   },
   subtitle: {
     fontSize: 16,

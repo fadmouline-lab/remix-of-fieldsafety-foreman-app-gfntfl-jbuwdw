@@ -16,6 +16,7 @@ import {
 } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
 import { WidgetProvider } from "@/contexts/WidgetContext";
+import { LanguageProvider } from "@/contexts/LanguageContext";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -83,51 +84,53 @@ export default function RootLayout() {
       <ThemeProvider
         value={colorScheme === "dark" ? CustomDarkTheme : CustomDefaultTheme}
       >
-        <WidgetProvider>
-          <GestureHandlerRootView>
-            <Stack>
-              <Stack.Screen name="login" options={{ headerShown: false }} />
-              <Stack.Screen 
-                name="forgot-password" 
-                options={{ 
-                  headerShown: true,
-                  title: "Forgot Password",
-                  presentation: "modal"
-                }} 
-              />
-              <Stack.Screen 
-                name="select-project" 
-                options={{ headerShown: false }} 
-              />
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen
-                name="modal"
-                options={{
-                  presentation: "modal",
-                  title: "Standard Modal",
-                }}
-              />
-              <Stack.Screen
-                name="formsheet"
-                options={{
-                  presentation: "formSheet",
-                  title: "Form Sheet Modal",
-                  sheetGrabberVisible: true,
-                  sheetAllowedDetents: [0.5, 0.8, 1.0],
-                  sheetCornerRadius: 20,
-                }}
-              />
-              <Stack.Screen
-                name="transparent-modal"
-                options={{
-                  presentation: "transparentModal",
-                  headerShown: false,
-                }}
-              />
-            </Stack>
-            <SystemBars style={"auto"} />
-          </GestureHandlerRootView>
-        </WidgetProvider>
+        <LanguageProvider>
+          <WidgetProvider>
+            <GestureHandlerRootView>
+              <Stack>
+                <Stack.Screen name="login" options={{ headerShown: false }} />
+                <Stack.Screen 
+                  name="forgot-password" 
+                  options={{ headerShown: false }} 
+                />
+                <Stack.Screen 
+                  name="select-project" 
+                  options={{ headerShown: false }} 
+                />
+                <Stack.Screen 
+                  name="profile" 
+                  options={{ headerShown: false }} 
+                />
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen
+                  name="modal"
+                  options={{
+                    presentation: "modal",
+                    title: "Standard Modal",
+                  }}
+                />
+                <Stack.Screen
+                  name="formsheet"
+                  options={{
+                    presentation: "formSheet",
+                    title: "Form Sheet Modal",
+                    sheetGrabberVisible: true,
+                    sheetAllowedDetents: [0.5, 0.8, 1.0],
+                    sheetCornerRadius: 20,
+                  }}
+                />
+                <Stack.Screen
+                  name="transparent-modal"
+                  options={{
+                    presentation: "transparentModal",
+                    headerShown: false,
+                  }}
+                />
+              </Stack>
+              <SystemBars style={"auto"} />
+            </GestureHandlerRootView>
+          </WidgetProvider>
+        </LanguageProvider>
       </ThemeProvider>
     </>
   );

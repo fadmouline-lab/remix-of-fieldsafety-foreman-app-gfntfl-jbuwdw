@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "FieldSafety Pro",
-    "slug": "FieldSafety Pro",
+    "name": "Remix of FieldSafety Pro",
+    "slug": "Remix of FieldSafety Pro",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/natively-dark.png",
@@ -44,5 +44,5 @@
       "router": {}
     }
   },
-  "scheme": "FieldSafety Pro"
+  "scheme": "Remix of FieldSafety Pro"
 }
