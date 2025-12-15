@@ -103,6 +103,34 @@ export default function RootLayout() {
                 />
                 <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
                 <Stack.Screen
+                  name="pre-task-modal"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                  name="pre-task-duplicate"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                  name="pre-task-select-tasks"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                  name="pre-task-select-workers"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                  name="pre-task-summary"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                  name="daily-activity-log-1"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                  name="daily-activity-log-2"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
                   name="modal"
                   options={{
                     presentation: "modal",
