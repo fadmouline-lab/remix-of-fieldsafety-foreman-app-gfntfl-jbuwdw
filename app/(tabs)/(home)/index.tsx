@@ -56,9 +56,13 @@ export default function HomeScreen() {
   const { language, setLanguage, t } = useLanguage();
   const [activeTab, setActiveTab] = useState<TabType>('TODO');
   const [settingsVisible, setSettingsVisible] = useState(false);
+  const [preTaskModalVisible, setPreTaskModalVisible] = useState(false);
 
-  const handleFormPress = (formTitle: string) => {
+  const handleFormPress = (formTitle: string, formId: string) => {
     console.log('Form pressed:', formTitle);
+    if (formId === '1' && activeTab === 'TODO') {
+      setPreTaskModalVisible(true);
+    }
   };
 
   const handleEditPress = (formId: string) => {
@@ -79,6 +83,16 @@ export default function HomeScreen() {
   const handleNavigateToSelectProject = () => {
     setSettingsVisible(false);
     router.push('/select-project');
+  };
+
+  const handleDuplicateYesterday = () => {
+    setPreTaskModalVisible(false);
+    router.push('/pre-task-duplicate');
+  };
+
+  const handleStartNew = () => {
+    setPreTaskModalVisible(false);
+    router.push('/pre-task-select-tasks');
   };
 
   return (
@@ -152,7 +166,7 @@ export default function HomeScreen() {
               <TouchableOpacity
                 key={index}
                 style={styles.formCard}
-                onPress={() => handleFormPress(t(form.titleKey))}
+                onPress={() => handleFormPress(t(form.titleKey), form.id)}
                 activeOpacity={0.7}
               >
                 <Text style={styles.formTitle}>{t(form.titleKey)}</Text>
@@ -194,7 +208,7 @@ export default function HomeScreen() {
               <TouchableOpacity
                 key={index}
                 style={styles.formCard}
-                onPress={() => handleFormPress(t(form.titleKey))}
+                onPress={() => handleFormPress(t(form.titleKey), form.id)}
                 activeOpacity={0.7}
               >
                 <Text style={styles.formTitle}>{t(form.titleKey)}</Text>
@@ -216,7 +230,7 @@ export default function HomeScreen() {
               <TouchableOpacity
                 key={index}
                 style={styles.formCard}
-                onPress={() => handleFormPress(t(form.titleKey))}
+                onPress={() => handleFormPress(t(form.titleKey), form.id)}
                 activeOpacity={0.7}
               >
                 <Text style={styles.formTitle}>{t(form.titleKey)}</Text>
@@ -362,6 +376,63 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
+      </Modal>
+
+      {/* Pre-Task Modal */}
+      <Modal
+        visible={preTaskModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setPreTaskModalVisible(false)}
+      >
+        <View style={styles.preTaskOverlay}>
+          <View style={styles.preTaskModalContainer}>
+            <View style={styles.preTaskHeader}>
+              <Text style={styles.preTaskTitle}>Pre-Task Card</Text>
+              <TouchableOpacity
+                onPress={() => setPreTaskModalVisible(false)}
+                style={styles.closeButton}
+              >
+                <IconSymbol
+                  ios_icon_name="xmark"
+                  android_material_icon_name="close"
+                  size={24}
+                  color={colors.text}
+                />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.preTaskButtonContainer}>
+              <TouchableOpacity
+                style={styles.preTaskOptionButton}
+                onPress={handleDuplicateYesterday}
+                activeOpacity={0.7}
+              >
+                <IconSymbol
+                  ios_icon_name="doc.on.doc.fill"
+                  android_material_icon_name="content-copy"
+                  size={32}
+                  color={colors.primary}
+                />
+                <Text style={styles.preTaskButtonText}>Duplicate Yesterday</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.preTaskOptionButton}
+                onPress={handleStartNew}
+                activeOpacity={0.7}
+              >
+                <IconSymbol
+                  ios_icon_name="plus.circle.fill"
+                  android_material_icon_name="add-circle"
+                  size={32}
+                  color={colors.primary}
+                />
+                <Text style={styles.preTaskButtonText}>Start New</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
       </Modal>
     </View>
   );
@@ -599,5 +670,51 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.secondary,
     fontWeight: '600',
+  },
+  preTaskOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  preTaskModalContainer: {
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    boxShadow: '0px 4px 16px rgba(0, 0, 0, 0.2)',
+    elevation: 8,
+  },
+  preTaskHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  preTaskTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  preTaskButtonContainer: {
+    gap: 16,
+  },
+  preTaskOptionButton: {
+    backgroundColor: colors.background,
+    borderRadius: 12,
+    padding: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    borderWidth: 2,
+    borderColor: colors.border,
+  },
+  preTaskButtonText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+    flex: 1,
   },
 });
