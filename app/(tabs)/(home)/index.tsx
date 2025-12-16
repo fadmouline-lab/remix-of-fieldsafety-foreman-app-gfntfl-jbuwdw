@@ -73,7 +73,9 @@ export default function HomeScreen() {
         router.push('/daily-activity-log-1');
       }
     } else if (tabType === 'MORE_FORMS') {
-      if (formId === '2') {
+      if (formId === '1') {
+        router.push('/extra-work-ticket-1');
+      } else if (formId === '2') {
         router.push('/hauling-dumpsters-1');
       }
     }
