@@ -75,26 +75,22 @@ export default function DailyActivityLogPage2() {
     setVoiceMemos(voiceMemos.filter((memo) => memo.id !== id));
   };
 
-  const handleSubmit = () => {
-    console.log('Submitting Daily Activity Log...');
+  const handleNext = () => {
+    console.log('Navigating to summary page...');
     console.log('Page 1 data:', params);
     console.log('Photos:', photos.length);
     console.log('Notes:', notes);
     console.log('Voice Memos:', voiceMemos.length);
     
-    Alert.alert(
-      'Form Submitted',
-      'Your Daily Activity Log has been submitted successfully.',
-      [
-        {
-          text: 'OK',
-          onPress: () => {
-            router.back();
-            router.back();
-          },
-        },
-      ]
-    );
+    router.push({
+      pathname: '/daily-activity-log-3',
+      params: {
+        ...params,
+        photos: JSON.stringify(photos),
+        notes: notes,
+        voiceMemos: JSON.stringify(voiceMemos),
+      },
+    });
   };
 
   return (
@@ -231,11 +227,11 @@ export default function DailyActivityLogPage2() {
 
       <View style={styles.footer}>
         <TouchableOpacity
-          style={styles.submitButton}
-          onPress={handleSubmit}
+          style={styles.nextButton}
+          onPress={handleNext}
           activeOpacity={0.7}
         >
-          <Text style={styles.submitButtonText}>SUBMIT FORM</Text>
+          <Text style={styles.nextButtonText}>NEXT</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -402,14 +398,14 @@ const styles = StyleSheet.create({
     boxShadow: '0px -2px 8px rgba(0, 0, 0, 0.1)',
     elevation: 8,
   },
-  submitButton: {
+  nextButton: {
     backgroundColor: colors.primary,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  submitButtonText: {
+  nextButtonText: {
     fontSize: 16,
     fontWeight: '700',
     color: colors.card,
