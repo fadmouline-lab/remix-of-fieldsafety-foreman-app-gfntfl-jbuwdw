@@ -158,23 +158,23 @@ export default function HaulingDumpstersPage2Screen() {
         <View style={styles.summaryCard}>
           <Text style={styles.sectionTitle}>Request Details</Text>
           
-          {/* Time */}
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Time:</Text>
-            <Text style={styles.infoValue}>{currentTime}</Text>
-          </View>
-
           {/* User Name */}
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>User Name:</Text>
+            <Text style={styles.infoLabel}>User Name</Text>
             <Text style={styles.infoValue}>{userName}</Text>
+          </View>
+
+          {/* Time */}
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Time</Text>
+            <Text style={styles.infoValue}>{currentTime}</Text>
           </View>
 
           {/* Address with Edit */}
           {!isEditingAddress ? (
             <View style={styles.infoRow}>
               <View style={styles.addressContainer}>
-                <Text style={styles.infoLabel}>Address:</Text>
+                <Text style={styles.infoLabel}>Address</Text>
                 <Text style={styles.infoValue}>{address}</Text>
               </View>
               <TouchableOpacity
@@ -193,7 +193,7 @@ export default function HaulingDumpstersPage2Screen() {
           ) : (
             <View style={styles.editRow}>
               <View style={styles.editInputContainer}>
-                <Text style={styles.infoLabel}>Address:</Text>
+                <Text style={styles.infoLabel}>Address</Text>
                 <TextInput
                   style={styles.editInput}
                   value={tempAddress}
@@ -332,16 +332,16 @@ const styles = StyleSheet.create({
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
   infoLabel: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
     color: colors.textSecondary,
-    marginBottom: 4,
+    marginBottom: 6,
   },
   infoValue: {
     fontSize: 15,

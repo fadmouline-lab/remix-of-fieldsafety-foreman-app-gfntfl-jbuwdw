@@ -78,6 +78,11 @@ export default function TimeCardsPage2Screen() {
               <Text style={styles.workerHours}>{worker.hours.toFixed(1)} hrs</Text>
             </View>
           ))}
+
+          <View style={styles.preparedByRow}>
+            <Text style={styles.preparedByLabel}>Prepared by:</Text>
+            <Text style={styles.preparedByValue}>John Smith</Text>
+          </View>
         </View>
 
         <View style={styles.totalCard}>
@@ -168,7 +173,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   tableRowLast: {
-    borderBottomWidth: 0,
+    borderBottomWidth: 1,
   },
   workerName: {
     fontSize: 16,
@@ -177,6 +182,24 @@ const styles = StyleSheet.create({
   },
   workerHours: {
     fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  preparedByRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingTop: 16,
+    marginTop: 12,
+    borderTopWidth: 2,
+    borderTopColor: colors.border,
+  },
+  preparedByLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  preparedByValue: {
+    fontSize: 14,
     fontWeight: '600',
     color: colors.text,
   },

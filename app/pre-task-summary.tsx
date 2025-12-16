@@ -153,6 +153,11 @@ export default function PreTaskSummaryScreen() {
             <Text style={styles.label}>Workers</Text>
             <Text style={styles.value}>{workers.join(', ')}</Text>
           </View>
+
+          <View style={styles.row}>
+            <Text style={styles.label}>Prepared by</Text>
+            <Text style={styles.value}>John Smith</Text>
+          </View>
         </View>
 
         <Text style={styles.sectionTitle}>Tasks</Text>
