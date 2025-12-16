@@ -179,6 +179,18 @@ export default function RootLayout() {
                   options={{ headerShown: false }}
                 />
                 <Stack.Screen
+                  name="near-miss-report-1"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                  name="near-miss-report-2"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                  name="near-miss-report-3"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
                   name="modal"
                   options={{
                     presentation: "modal",

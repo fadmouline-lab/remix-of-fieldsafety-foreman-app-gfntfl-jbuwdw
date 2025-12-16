@@ -87,8 +87,7 @@ export default function HomeScreen() {
         console.log('Observation form - not implemented yet');
         // Do nothing for now - workflow not created yet
       } else if (formId === 'near-miss') {
-        console.log('Near Miss form - not implemented yet');
-        // Do nothing for now - workflow not created yet
+        router.push('/near-miss-report-1');
       } else if (formId === 'incident') {
         router.push('/incident-report-1');
       }

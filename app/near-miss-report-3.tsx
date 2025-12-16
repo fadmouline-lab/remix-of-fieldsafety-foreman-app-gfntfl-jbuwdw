@@ -13,23 +13,21 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 
-export default function IncidentReportSummaryScreen() {
+export default function NearMissReportSummaryScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
 
-  const employeeName = params.employeeName as string;
+  const personInvolved = params.personInvolved as string;
   const jobTitle = params.jobTitle as string;
   const incidentDate = params.incidentDate ? new Date(params.incidentDate as string) : new Date();
   const incidentTime = params.incidentTime ? new Date(params.incidentTime as string) : new Date();
   const location = params.location as string;
   const area = params.area as string;
-  const activityBefore = params.activityBefore as string;
-  const howOccurred = params.howOccurred as string;
-  const firstAidProvided = params.firstAidProvided === 'true';
-  const firstAidDescription = params.firstAidDescription as string;
-  const bodyPart = params.bodyPart as string;
-  const objectSubstance = params.objectSubstance as string;
+  const nearMissDescription = params.nearMissDescription as string;
+  const nearMissType = params.nearMissType as string;
   const photos = params.photos ? JSON.parse(params.photos as string) : [];
+  const correctiveAction = params.correctiveAction as string;
+  const areaSafe = params.areaSafe === 'true';
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('en-US', {
@@ -47,9 +45,9 @@ export default function IncidentReportSummaryScreen() {
   };
 
   const handleSubmit = () => {
-    console.log('Submitting Incident Report');
-    console.log('Employee:', employeeName);
-    console.log('Body Part:', bodyPart);
+    console.log('Submitting Near Miss Report');
+    console.log('Person Involved:', personInvolved);
+    console.log('Near Miss Type:', nearMissType);
     console.log('Photos:', photos.length);
 
     // Navigate back to Dashboard
@@ -67,7 +65,7 @@ export default function IncidentReportSummaryScreen() {
             color={colors.text}
           />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Incident Report – Summary</Text>
+        <Text style={styles.headerTitle}>Near Miss – Summary</Text>
         <View style={styles.placeholder} />
       </View>
 
@@ -81,11 +79,11 @@ export default function IncidentReportSummaryScreen() {
           <Text style={styles.sectionTitle}>Worker Info</Text>
           <View style={styles.tableCard}>
             <View style={styles.tableRow}>
-              <Text style={styles.tableLabel}>Employee Name</Text>
-              <Text style={styles.tableValue}>{employeeName}</Text>
+              <Text style={styles.tableLabel}>Person involved</Text>
+              <Text style={styles.tableValue}>{personInvolved}</Text>
             </View>
             <View style={styles.tableRow}>
-              <Text style={styles.tableLabel}>Job Title</Text>
+              <Text style={styles.tableLabel}>Job title</Text>
               <Text style={styles.tableValue}>{jobTitle}</Text>
             </View>
             <View style={styles.tableRow}>
@@ -103,36 +101,30 @@ export default function IncidentReportSummaryScreen() {
           </View>
         </View>
 
-        {/* Incident Info Section */}
+        {/* Near Miss Details Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Incident Info</Text>
+          <Text style={styles.sectionTitle}>Near Miss Details</Text>
           <View style={styles.tableCard}>
+            <View style={styles.descriptionRow}>
+              <Text style={styles.tableLabel}>Near miss description</Text>
+              <Text style={styles.descriptionText}>{nearMissDescription || 'N/A'}</Text>
+            </View>
             <View style={styles.tableRow}>
-              <Text style={styles.tableLabel}>Area</Text>
+              <Text style={styles.tableLabel}>Near miss type</Text>
+              <Text style={styles.tableValue}>{nearMissType || 'N/A'}</Text>
+            </View>
+            <View style={styles.tableRow}>
+              <Text style={styles.tableLabel}>Near miss area</Text>
               <Text style={styles.tableValue}>{area || 'N/A'}</Text>
             </View>
             <View style={styles.descriptionRow}>
-              <Text style={styles.tableLabel}>Activity before incident</Text>
-              <Text style={styles.descriptionText}>{activityBefore || 'N/A'}</Text>
+              <Text style={styles.tableLabel}>Corrective action taken</Text>
+              <Text style={styles.descriptionText}>{correctiveAction || 'N/A'}</Text>
             </View>
-            <View style={styles.descriptionRow}>
-              <Text style={styles.tableLabel}>How it occurred</Text>
-              <Text style={styles.descriptionText}>{howOccurred || 'N/A'}</Text>
-            </View>
-            <View style={styles.tableRow}>
-              <Text style={styles.tableLabel}>Body part affected</Text>
-              <Text style={styles.tableValue}>{bodyPart || 'N/A'}</Text>
-            </View>
-            <View style={styles.tableRow}>
-              <Text style={styles.tableLabel}>Object/Substance</Text>
-              <Text style={styles.tableValue}>{objectSubstance || 'N/A'}</Text>
-            </View>
-            <View style={[styles.descriptionRow, styles.lastRow]}>
-              <Text style={styles.tableLabel}>First aid</Text>
-              <Text style={styles.descriptionText}>
-                {firstAidProvided
-                  ? firstAidDescription || 'Yes (no details provided)'
-                  : 'No'}
+            <View style={[styles.tableRow, styles.lastRow]}>
+              <Text style={styles.tableLabel}>Area safe?</Text>
+              <Text style={[styles.tableValue, areaSafe ? styles.safeText : styles.unsafeText]}>
+                {areaSafe ? 'Yes' : 'No'}
               </Text>
             </View>
           </View>
@@ -262,6 +254,12 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginTop: 4,
     lineHeight: 20,
+  },
+  safeText: {
+    color: colors.success,
+  },
+  unsafeText: {
+    color: colors.secondary,
   },
   photosContainer: {
     flexDirection: 'row',

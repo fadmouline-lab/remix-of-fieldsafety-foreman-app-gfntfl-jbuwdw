@@ -24,7 +24,7 @@ const placeholderWorkers = [
   { name: 'Emily Chen', title: 'Site Supervisor' },
 ];
 
-export default function IncidentReportWorkerScreen() {
+export default function NearMissReportBasicInfoScreen() {
   const router = useRouter();
   const [selectedWorker, setSelectedWorker] = useState<typeof placeholderWorkers[0] | null>(null);
   const [showWorkerPicker, setShowWorkerPicker] = useState(false);
@@ -42,11 +42,11 @@ export default function IncidentReportWorkerScreen() {
       return;
     }
 
-    console.log('Navigating to Incident Report - Description');
+    console.log('Navigating to Near Miss Report - Details');
     router.push({
-      pathname: '/incident-report-2',
+      pathname: '/near-miss-report-2',
       params: {
-        employeeName: selectedWorker.name,
+        personInvolved: selectedWorker.name,
         jobTitle: selectedWorker.title,
         incidentDate: incidentDate.toISOString(),
         incidentTime: incidentTime.toISOString(),
@@ -104,7 +104,7 @@ export default function IncidentReportWorkerScreen() {
             color={colors.text}
           />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Incident Report – Worker</Text>
+        <Text style={styles.headerTitle}>Near Miss – Basic Info</Text>
         <View style={styles.placeholder} />
       </View>
 
@@ -113,16 +113,16 @@ export default function IncidentReportWorkerScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Employee Name */}
+        {/* Person Involved */}
         <View style={styles.fieldContainer}>
-          <Text style={styles.fieldLabel}>Employee Name *</Text>
+          <Text style={styles.fieldLabel}>Person Involved *</Text>
           <TouchableOpacity
             style={styles.selectButton}
             onPress={() => setShowWorkerPicker(true)}
             activeOpacity={0.7}
           >
             <Text style={[styles.selectButtonText, !selectedWorker && styles.placeholderText]}>
-              {selectedWorker ? selectedWorker.name : 'Select employee'}
+              {selectedWorker ? selectedWorker.name : 'Select person'}
             </Text>
             <IconSymbol
               ios_icon_name="chevron.down"
@@ -143,17 +143,17 @@ export default function IncidentReportWorkerScreen() {
           </View>
         )}
 
-        {/* Date of Incident */}
+        {/* Date */}
         <View style={styles.fieldContainer}>
-          <Text style={styles.fieldLabel}>Date of Incident</Text>
+          <Text style={styles.fieldLabel}>Date</Text>
           <View style={styles.readOnlyField}>
             <Text style={styles.readOnlyText}>{formatDate(incidentDate)}</Text>
           </View>
         </View>
 
-        {/* Time of Incident */}
+        {/* Time */}
         <View style={styles.fieldContainer}>
-          <Text style={styles.fieldLabel}>Time of Incident *</Text>
+          <Text style={styles.fieldLabel}>Time *</Text>
           <TouchableOpacity
             style={styles.selectButton}
             onPress={() => setShowTimePicker(true)}
@@ -230,7 +230,7 @@ export default function IncidentReportWorkerScreen() {
             style={styles.textInput}
             value={area}
             onChangeText={setArea}
-            placeholder="Where exactly did the incident happen on the job site?"
+            placeholder="Where exactly did this happen on the job site?"
             placeholderTextColor={colors.textSecondary}
           />
         </View>
@@ -261,7 +261,7 @@ export default function IncidentReportWorkerScreen() {
         >
           <View style={styles.pickerContainer}>
             <View style={styles.pickerHeader}>
-              <Text style={styles.pickerTitle}>Select Employee</Text>
+              <Text style={styles.pickerTitle}>Select Person</Text>
               <TouchableOpacity onPress={() => setShowWorkerPicker(false)}>
                 <IconSymbol
                   ios_icon_name="xmark"
@@ -459,11 +459,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: colors.primary,
+    borderColor: colors.border,
     fontSize: 16,
     fontWeight: '500',
     color: colors.text,
-    minHeight: 60,
+    minHeight: 50,
     textAlignVertical: 'top',
     boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
     elevation: 3,
