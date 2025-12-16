@@ -62,6 +62,8 @@ export default function HomeScreen() {
     console.log('Form pressed:', formTitle);
     if (formId === '1' && activeTab === 'TODO') {
       setPreTaskModalVisible(true);
+    } else if (formId === '2' && activeTab === 'TODO') {
+      router.push('/time-cards-1');
     } else if (formId === '3' && activeTab === 'TODO') {
       router.push('/daily-activity-log-1');
     }
