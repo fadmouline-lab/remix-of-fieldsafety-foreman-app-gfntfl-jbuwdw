@@ -77,6 +77,11 @@ export default function HomeScreen() {
         router.push('/extra-work-ticket-1');
       } else if (formId === '2') {
         router.push('/hauling-dumpsters-1');
+      } else if (formId === '3') {
+        // Near Miss - do nothing for now
+        console.log('Near Miss form - not implemented yet');
+      } else if (formId === '4') {
+        router.push('/incident-report-1');
       }
     }
   };

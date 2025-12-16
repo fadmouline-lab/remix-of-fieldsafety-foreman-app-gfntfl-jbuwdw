@@ -147,6 +147,38 @@ export default function RootLayout() {
                   options={{ headerShown: false }}
                 />
                 <Stack.Screen
+                  name="extra-work-ticket-1"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                  name="extra-work-ticket-2"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                  name="extra-work-ticket-3"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                  name="extra-work-ticket-4"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                  name="incident-report-1"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                  name="incident-report-2"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                  name="incident-report-3"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                  name="incident-report-4"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
                   name="modal"
                   options={{
                     presentation: "modal",
