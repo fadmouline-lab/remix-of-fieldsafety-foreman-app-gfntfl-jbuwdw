@@ -81,11 +81,9 @@ export default function HomeScreen() {
       }
       // Safety forms
       else if (formId === 'equipment-inspection') {
-        console.log('Equipment Inspection form - not implemented yet');
-        // Do nothing for now - workflow not created yet
+        router.push('/equipment-inspection-1');
       } else if (formId === 'observation') {
-        console.log('Observation form - not implemented yet');
-        // Do nothing for now - workflow not created yet
+        router.push('/observation-report-1');
       } else if (formId === 'near-miss') {
         router.push('/near-miss-report-1');
       } else if (formId === 'incident') {

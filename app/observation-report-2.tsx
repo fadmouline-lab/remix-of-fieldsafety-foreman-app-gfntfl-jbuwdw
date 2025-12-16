@@ -16,13 +16,14 @@ import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import * as ImagePicker from 'expo-image-picker';
 
-export default function NearMissReportDetailsScreen() {
+export default function ObservationReportDetailsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
 
-  const [nearMissDescription, setNearMissDescription] = useState('');
+  const [observationDescription, setObservationDescription] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
-  const [correctiveAction, setCorrectiveAction] = useState('');
+  const [correctiveActionTaken, setCorrectiveActionTaken] = useState(true);
+  const [correctiveActionDescription, setCorrectiveActionDescription] = useState('');
   const [areaSafe, setAreaSafe] = useState(true);
 
   const handleAddPhoto = async () => {
@@ -50,14 +51,15 @@ export default function NearMissReportDetailsScreen() {
   };
 
   const handleNext = () => {
-    console.log('Navigating to Near Miss Report - Summary');
+    console.log('Navigating to Observation Report - Summary');
     router.push({
-      pathname: '/near-miss-report-3',
+      pathname: '/observation-report-3',
       params: {
         ...params,
-        nearMissDescription,
+        observationDescription,
         photos: JSON.stringify(photos),
-        correctiveAction,
+        correctiveActionTaken: correctiveActionTaken.toString(),
+        correctiveActionDescription,
         areaSafe: areaSafe.toString(),
       },
     });
@@ -74,7 +76,7 @@ export default function NearMissReportDetailsScreen() {
             color={colors.text}
           />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Near Miss – Details</Text>
+        <Text style={styles.headerTitle}>Observation – Details</Text>
         <View style={styles.placeholder} />
       </View>
 
@@ -83,15 +85,14 @@ export default function NearMissReportDetailsScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Describe the Near Miss */}
+        {/* Describe the Observation */}
         <View style={styles.fieldContainer}>
-          <Text style={styles.fieldLabel}>Describe the near miss *</Text>
-          <Text style={styles.fieldHint}>What almost happened?</Text>
+          <Text style={styles.fieldLabel}>Describe the observation *</Text>
           <TextInput
             style={styles.textArea}
-            value={nearMissDescription}
-            onChangeText={setNearMissDescription}
-            placeholder="Describe what almost happened..."
+            value={observationDescription}
+            onChangeText={setObservationDescription}
+            placeholder="Describe what you observed..."
             placeholderTextColor={colors.textSecondary}
             multiline
             numberOfLines={4}
@@ -139,20 +140,35 @@ export default function NearMissReportDetailsScreen() {
           )}
         </View>
 
-        {/* Immediate Corrective Action */}
+        {/* Corrective Action Taken */}
         <View style={styles.fieldContainer}>
-          <Text style={styles.fieldLabel}>Immediate corrective action taken *</Text>
-          <TextInput
-            style={styles.textArea}
-            value={correctiveAction}
-            onChangeText={setCorrectiveAction}
-            placeholder="Describe the corrective action taken..."
-            placeholderTextColor={colors.textSecondary}
-            multiline
-            numberOfLines={3}
-            textAlignVertical="top"
-          />
+          <View style={styles.toggleRow}>
+            <Text style={styles.toggleLabel}>Corrective action taken</Text>
+            <Switch
+              value={correctiveActionTaken}
+              onValueChange={setCorrectiveActionTaken}
+              trackColor={{ false: colors.border, true: colors.success }}
+              thumbColor={colors.card}
+            />
+          </View>
         </View>
+
+        {/* Corrective Action Description (conditional) */}
+        {correctiveActionTaken && (
+          <View style={styles.fieldContainer}>
+            <Text style={styles.fieldLabel}>Describe the corrective action *</Text>
+            <TextInput
+              style={styles.textArea}
+              value={correctiveActionDescription}
+              onChangeText={setCorrectiveActionDescription}
+              placeholder="Describe the corrective action taken..."
+              placeholderTextColor={colors.textSecondary}
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
+            />
+          </View>
+        )}
 
         {/* Area Safe Toggle */}
         <View style={styles.fieldContainer}>
@@ -219,11 +235,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 4,
-  },
-  fieldHint: {
-    fontSize: 12,
-    color: colors.textSecondary,
     marginBottom: 8,
   },
   textArea: {

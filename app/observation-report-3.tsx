@@ -13,19 +13,19 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 
-export default function NearMissReportSummaryScreen() {
+export default function ObservationReportSummaryScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
 
-  const personInvolved = params.personInvolved as string;
-  const jobTitle = params.jobTitle as string;
-  const incidentDate = params.incidentDate ? new Date(params.incidentDate as string) : new Date();
-  const incidentTime = params.incidentTime ? new Date(params.incidentTime as string) : new Date();
+  const observer = params.observer as string;
+  const observationDate = params.observationDate ? new Date(params.observationDate as string) : new Date();
+  const observationTime = params.observationTime ? new Date(params.observationTime as string) : new Date();
   const location = params.location as string;
   const area = params.area as string;
-  const nearMissDescription = params.nearMissDescription as string;
+  const observationDescription = params.observationDescription as string;
   const photos = params.photos ? JSON.parse(params.photos as string) : [];
-  const correctiveAction = params.correctiveAction as string;
+  const correctiveActionTaken = params.correctiveActionTaken === 'true';
+  const correctiveActionDescription = params.correctiveActionDescription as string;
   const areaSafe = params.areaSafe === 'true';
 
   const formatDate = (date: Date) => {
@@ -44,8 +44,8 @@ export default function NearMissReportSummaryScreen() {
   };
 
   const handleSubmit = () => {
-    console.log('Submitting Near Miss Report');
-    console.log('Person Involved:', personInvolved);
+    console.log('Submitting Observation Report');
+    console.log('Observer:', observer);
     console.log('Photos:', photos.length);
 
     // Navigate back to Dashboard
@@ -63,7 +63,7 @@ export default function NearMissReportSummaryScreen() {
             color={colors.text}
           />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Near Miss – Summary</Text>
+        <Text style={styles.headerTitle}>Observation – Summary</Text>
         <View style={styles.placeholder} />
       </View>
 
@@ -72,49 +72,50 @@ export default function NearMissReportSummaryScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Worker Info Section */}
+        {/* Info Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Worker Info</Text>
+          <Text style={styles.sectionTitle}>Info</Text>
           <View style={styles.tableCard}>
             <View style={styles.tableRow}>
-              <Text style={styles.tableLabel}>Person involved</Text>
-              <Text style={styles.tableValue}>{personInvolved}</Text>
-            </View>
-            <View style={styles.tableRow}>
-              <Text style={styles.tableLabel}>Job title</Text>
-              <Text style={styles.tableValue}>{jobTitle}</Text>
+              <Text style={styles.tableLabel}>Observer</Text>
+              <Text style={styles.tableValue}>{observer}</Text>
             </View>
             <View style={styles.tableRow}>
               <Text style={styles.tableLabel}>Date</Text>
-              <Text style={styles.tableValue}>{formatDate(incidentDate)}</Text>
+              <Text style={styles.tableValue}>{formatDate(observationDate)}</Text>
             </View>
             <View style={styles.tableRow}>
               <Text style={styles.tableLabel}>Time</Text>
-              <Text style={styles.tableValue}>{formatTime(incidentTime)}</Text>
+              <Text style={styles.tableValue}>{formatTime(observationTime)}</Text>
             </View>
-            <View style={[styles.tableRow, styles.lastRow]}>
+            <View style={styles.tableRow}>
               <Text style={styles.tableLabel}>Location</Text>
               <Text style={[styles.tableValue, styles.locationValue]}>{location}</Text>
             </View>
+            {area && (
+              <View style={[styles.tableRow, styles.lastRow]}>
+                <Text style={styles.tableLabel}>Area</Text>
+                <Text style={styles.tableValue}>{area}</Text>
+              </View>
+            )}
+            {!area && <View style={styles.lastRow} />}
           </View>
         </View>
 
-        {/* Near Miss Details Section */}
+        {/* Details Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Near Miss Details</Text>
+          <Text style={styles.sectionTitle}>Details</Text>
           <View style={styles.tableCard}>
             <View style={styles.descriptionRow}>
-              <Text style={styles.tableLabel}>Near miss description</Text>
-              <Text style={styles.descriptionText}>{nearMissDescription || 'N/A'}</Text>
+              <Text style={styles.tableLabel}>Observation description</Text>
+              <Text style={styles.descriptionText}>{observationDescription || 'N/A'}</Text>
             </View>
-            <View style={styles.tableRow}>
-              <Text style={styles.tableLabel}>Near miss area</Text>
-              <Text style={styles.tableValue}>{area || 'N/A'}</Text>
-            </View>
-            <View style={styles.descriptionRow}>
-              <Text style={styles.tableLabel}>Corrective action taken</Text>
-              <Text style={styles.descriptionText}>{correctiveAction || 'N/A'}</Text>
-            </View>
+            {correctiveActionTaken && (
+              <View style={styles.descriptionRow}>
+                <Text style={styles.tableLabel}>Corrective action</Text>
+                <Text style={styles.descriptionText}>{correctiveActionDescription || 'N/A'}</Text>
+              </View>
+            )}
             <View style={[styles.tableRow, styles.lastRow]}>
               <Text style={styles.tableLabel}>Area safe?</Text>
               <Text style={[styles.tableValue, areaSafe ? styles.safeText : styles.unsafeText]}>
@@ -143,8 +144,8 @@ export default function NearMissReportSummaryScreen() {
           <Text style={styles.sectionTitle}>Prepared By</Text>
           <View style={styles.tableCard}>
             <View style={[styles.tableRow, styles.lastRow]}>
-              <Text style={styles.tableLabel}>Foreman</Text>
-              <Text style={styles.tableValue}>Juan Perez</Text>
+              <Text style={styles.tableLabel}>Current User</Text>
+              <Text style={styles.tableValue}>{observer}</Text>
             </View>
           </View>
         </View>
