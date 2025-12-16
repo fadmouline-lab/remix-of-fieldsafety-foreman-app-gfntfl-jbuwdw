@@ -27,8 +27,11 @@ interface CompletedForm {
   submittedDate: string;
 }
 
-const todoForms: FormCard[] = [
+const beforeJobStartForms: FormCard[] = [
   { id: '1', titleKey: 'forms.dailyPreTask' },
+];
+
+const afterJobCompletedForms: FormCard[] = [
   { id: '2', titleKey: 'forms.timeCards' },
   { id: '3', titleKey: 'forms.dailyActivityLog' },
 ];
@@ -58,14 +61,21 @@ export default function HomeScreen() {
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [preTaskModalVisible, setPreTaskModalVisible] = useState(false);
 
-  const handleFormPress = (formTitle: string, formId: string) => {
+  const handleFormPress = (formTitle: string, formId: string, tabType: TabType) => {
     console.log('Form pressed:', formTitle);
-    if (formId === '1' && activeTab === 'TODO') {
-      setPreTaskModalVisible(true);
-    } else if (formId === '2' && activeTab === 'TODO') {
-      router.push('/time-cards-1');
-    } else if (formId === '3' && activeTab === 'TODO') {
-      router.push('/daily-activity-log-1');
+    
+    if (tabType === 'TODO') {
+      if (formId === '1') {
+        setPreTaskModalVisible(true);
+      } else if (formId === '2') {
+        router.push('/time-cards-1');
+      } else if (formId === '3') {
+        router.push('/daily-activity-log-1');
+      }
+    } else if (tabType === 'MORE_FORMS') {
+      if (formId === '2') {
+        router.push('/hauling-dumpsters-1');
+      }
     }
   };
 
@@ -165,12 +175,34 @@ export default function HomeScreen() {
       >
         {activeTab === 'TODO' ? (
           <View>
-            <Text style={styles.sectionTitle}>{t('home.today')}</Text>
-            {todoForms.map((form, index) => (
+            <Text style={styles.sectionTitle}>{t('home.beforeJobStart')}</Text>
+            {beforeJobStartForms.map((form, index) => (
               <TouchableOpacity
                 key={index}
                 style={styles.formCard}
-                onPress={() => handleFormPress(t(form.titleKey), form.id)}
+                onPress={() => handleFormPress(t(form.titleKey), form.id, 'TODO')}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.formTitle}>{t(form.titleKey)}</Text>
+                <View style={styles.addIconContainer}>
+                  <IconSymbol
+                    ios_icon_name="plus.circle.fill"
+                    android_material_icon_name="add-circle"
+                    size={32}
+                    color={colors.primary}
+                  />
+                </View>
+              </TouchableOpacity>
+            ))}
+
+            <Text style={[styles.sectionTitle, styles.sectionTitleMargin]}>
+              {t('home.afterJobCompleted')}
+            </Text>
+            {afterJobCompletedForms.map((form, index) => (
+              <TouchableOpacity
+                key={index}
+                style={styles.formCard}
+                onPress={() => handleFormPress(t(form.titleKey), form.id, 'TODO')}
                 activeOpacity={0.7}
               >
                 <Text style={styles.formTitle}>{t(form.titleKey)}</Text>
@@ -212,7 +244,7 @@ export default function HomeScreen() {
               <TouchableOpacity
                 key={index}
                 style={styles.formCard}
-                onPress={() => handleFormPress(t(form.titleKey), form.id)}
+                onPress={() => handleFormPress(t(form.titleKey), form.id, 'MORE_FORMS')}
                 activeOpacity={0.7}
               >
                 <Text style={styles.formTitle}>{t(form.titleKey)}</Text>
@@ -234,7 +266,7 @@ export default function HomeScreen() {
               <TouchableOpacity
                 key={index}
                 style={styles.formCard}
-                onPress={() => handleFormPress(t(form.titleKey), form.id)}
+                onPress={() => handleFormPress(t(form.titleKey), form.id, 'MORE_FORMS')}
                 activeOpacity={0.7}
               >
                 <Text style={styles.formTitle}>{t(form.titleKey)}</Text>
@@ -512,11 +544,12 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: '700',
     color: colors.text,
     marginBottom: 12,
-    letterSpacing: 0.5,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   sectionTitleMargin: {
     marginTop: 24,
