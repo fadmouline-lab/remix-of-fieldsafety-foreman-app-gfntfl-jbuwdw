@@ -22,8 +22,8 @@ export default function ObservationReportInfoScreen() {
   const [observationDate] = useState(new Date());
   const [observationTime, setObservationTime] = useState(new Date());
   const [showTimePicker, setShowTimePicker] = useState(false);
-  const [location, setLocation] = useState('123 Main St, Chicago, IL 60611');
   const [area, setArea] = useState('');
+  const [location, setLocation] = useState('123 Main St, Chicago, IL 60611');
 
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString('en-US', {
@@ -47,8 +47,8 @@ export default function ObservationReportInfoScreen() {
         observer,
         observationDate: observationDate.toISOString(),
         observationTime: observationTime.toISOString(),
-        location,
         area,
+        location,
       },
     });
   };
@@ -113,6 +113,18 @@ export default function ObservationReportInfoScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Area */}
+        <View style={styles.fieldContainer}>
+          <Text style={styles.fieldLabel}>Area</Text>
+          <TextInput
+            style={styles.textInput}
+            value={area}
+            onChangeText={setArea}
+            placeholder="Enter specific area on job site"
+            placeholderTextColor={colors.textSecondary}
+          />
+        </View>
+
         {/* Location */}
         <View style={styles.fieldContainer}>
           <Text style={styles.fieldLabel}>Location</Text>
@@ -133,18 +145,6 @@ export default function ObservationReportInfoScreen() {
               />
             </TouchableOpacity>
           </View>
-        </View>
-
-        {/* Area */}
-        <View style={styles.fieldContainer}>
-          <Text style={styles.fieldLabel}>Area</Text>
-          <TextInput
-            style={styles.textInput}
-            value={area}
-            onChangeText={setArea}
-            placeholder="Enter specific area on job site"
-            placeholderTextColor={colors.textSecondary}
-          />
         </View>
       </ScrollView>
 

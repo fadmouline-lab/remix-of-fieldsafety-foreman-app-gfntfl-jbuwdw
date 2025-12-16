@@ -22,6 +22,7 @@ export default function NearMissReportDetailsScreen() {
 
   const [nearMissDescription, setNearMissDescription] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
+  const [correctiveActionTaken, setCorrectiveActionTaken] = useState(false);
   const [correctiveAction, setCorrectiveAction] = useState('');
   const [areaSafe, setAreaSafe] = useState(true);
 
@@ -57,6 +58,7 @@ export default function NearMissReportDetailsScreen() {
         ...params,
         nearMissDescription,
         photos: JSON.stringify(photos),
+        correctiveActionTaken: correctiveActionTaken.toString(),
         correctiveAction,
         areaSafe: areaSafe.toString(),
       },
@@ -139,20 +141,43 @@ export default function NearMissReportDetailsScreen() {
           )}
         </View>
 
-        {/* Immediate Corrective Action */}
+        {/* Immediate Corrective Action Taken Toggle */}
         <View style={styles.fieldContainer}>
-          <Text style={styles.fieldLabel}>Immediate corrective action taken *</Text>
-          <TextInput
-            style={styles.textArea}
-            value={correctiveAction}
-            onChangeText={setCorrectiveAction}
-            placeholder="Describe the corrective action taken..."
-            placeholderTextColor={colors.textSecondary}
-            multiline
-            numberOfLines={3}
-            textAlignVertical="top"
-          />
+          <View style={styles.toggleRow}>
+            <Text style={styles.toggleLabel}>Immediate corrective action taken</Text>
+            <View style={styles.toggleContainer}>
+              <Text style={[styles.statusText, !correctiveActionTaken && styles.statusTextActive]}>
+                NO
+              </Text>
+              <Switch
+                value={correctiveActionTaken}
+                onValueChange={setCorrectiveActionTaken}
+                trackColor={{ false: colors.secondary, true: colors.success }}
+                thumbColor={colors.card}
+              />
+              <Text style={[styles.statusText, correctiveActionTaken && styles.statusTextActive]}>
+                YES
+              </Text>
+            </View>
+          </View>
         </View>
+
+        {/* Corrective Action Description (conditional) */}
+        {correctiveActionTaken && (
+          <View style={styles.fieldContainer}>
+            <Text style={styles.fieldLabel}>Describe the corrective action *</Text>
+            <TextInput
+              style={styles.textArea}
+              value={correctiveAction}
+              onChangeText={setCorrectiveAction}
+              placeholder="Describe the corrective action taken..."
+              placeholderTextColor={colors.textSecondary}
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
+            />
+          </View>
+        )}
 
         {/* Area Safe Toggle */}
         <View style={styles.fieldContainer}>
@@ -298,6 +323,19 @@ const styles = StyleSheet.create({
     color: colors.text,
     flex: 1,
     marginRight: 12,
+  },
+  toggleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  statusText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  statusTextActive: {
+    color: colors.text,
   },
   footer: {
     position: 'absolute',

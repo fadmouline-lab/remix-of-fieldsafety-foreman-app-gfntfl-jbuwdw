@@ -21,10 +21,11 @@ export default function NearMissReportSummaryScreen() {
   const jobTitle = params.jobTitle as string;
   const incidentDate = params.incidentDate ? new Date(params.incidentDate as string) : new Date();
   const incidentTime = params.incidentTime ? new Date(params.incidentTime as string) : new Date();
-  const location = params.location as string;
   const area = params.area as string;
+  const location = params.location as string;
   const nearMissDescription = params.nearMissDescription as string;
   const photos = params.photos ? JSON.parse(params.photos as string) : [];
+  const correctiveActionTaken = params.correctiveActionTaken === 'true';
   const correctiveAction = params.correctiveAction as string;
   const areaSafe = params.areaSafe === 'true';
 
@@ -88,13 +89,9 @@ export default function NearMissReportSummaryScreen() {
               <Text style={styles.tableLabel}>Date</Text>
               <Text style={styles.tableValue}>{formatDate(incidentDate)}</Text>
             </View>
-            <View style={styles.tableRow}>
+            <View style={[styles.tableRow, styles.lastRow]}>
               <Text style={styles.tableLabel}>Time</Text>
               <Text style={styles.tableValue}>{formatTime(incidentTime)}</Text>
-            </View>
-            <View style={[styles.tableRow, styles.lastRow]}>
-              <Text style={styles.tableLabel}>Location</Text>
-              <Text style={[styles.tableValue, styles.locationValue]}>{location}</Text>
             </View>
           </View>
         </View>
@@ -111,10 +108,16 @@ export default function NearMissReportSummaryScreen() {
               <Text style={styles.tableLabel}>Near miss area</Text>
               <Text style={styles.tableValue}>{area || 'N/A'}</Text>
             </View>
-            <View style={styles.descriptionRow}>
-              <Text style={styles.tableLabel}>Corrective action taken</Text>
-              <Text style={styles.descriptionText}>{correctiveAction || 'N/A'}</Text>
+            <View style={styles.tableRow}>
+              <Text style={styles.tableLabel}>Location</Text>
+              <Text style={[styles.tableValue, styles.locationValue]}>{location}</Text>
             </View>
+            {correctiveActionTaken && (
+              <View style={styles.descriptionRow}>
+                <Text style={styles.tableLabel}>Corrective action taken</Text>
+                <Text style={styles.descriptionText}>{correctiveAction || 'N/A'}</Text>
+              </View>
+            )}
             <View style={[styles.tableRow, styles.lastRow]}>
               <Text style={styles.tableLabel}>Area safe?</Text>
               <Text style={[styles.tableValue, areaSafe ? styles.safeText : styles.unsafeText]}>

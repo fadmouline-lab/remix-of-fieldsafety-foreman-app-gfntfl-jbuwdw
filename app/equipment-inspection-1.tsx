@@ -63,7 +63,11 @@ export default function EquipmentInspectionStartScreen() {
         <View style={styles.placeholder} />
       </View>
 
-      <View style={styles.content}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={styles.instructionText}>
           Select how you would like to identify the equipment:
         </Text>
@@ -105,7 +109,7 @@ export default function EquipmentInspectionStartScreen() {
             Choose equipment from a list
           </Text>
         </TouchableOpacity>
-      </View>
+      </ScrollView>
 
       {/* Equipment List Modal */}
       <Modal
@@ -180,10 +184,13 @@ const styles = StyleSheet.create({
   placeholder: {
     width: 40,
   },
-  content: {
+  scrollView: {
     flex: 1,
+  },
+  scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 40,
+    paddingBottom: 40,
   },
   instructionText: {
     fontSize: 16,

@@ -191,6 +191,30 @@ export default function RootLayout() {
                   options={{ headerShown: false }}
                 />
                 <Stack.Screen
+                  name="observation-report-1"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                  name="observation-report-2"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                  name="observation-report-3"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                  name="equipment-inspection-1"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                  name="equipment-inspection-2"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                  name="equipment-inspection-3"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
                   name="modal"
                   options={{
                     presentation: "modal",

@@ -31,10 +31,10 @@ export default function NearMissReportBasicInfoScreen() {
   const [incidentDate, setIncidentDate] = useState(new Date());
   const [incidentTime, setIncidentTime] = useState(new Date());
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [area, setArea] = useState('');
   const [location, setLocation] = useState('123 Main Street, Chicago, IL 60611');
   const [isEditingLocation, setIsEditingLocation] = useState(false);
   const [tempLocation, setTempLocation] = useState(location);
-  const [area, setArea] = useState('');
 
   const handleNext = () => {
     if (!selectedWorker) {
@@ -50,8 +50,8 @@ export default function NearMissReportBasicInfoScreen() {
         jobTitle: selectedWorker.title,
         incidentDate: incidentDate.toISOString(),
         incidentTime: incidentTime.toISOString(),
-        location: location,
         area: area,
+        location: location,
       },
     });
   };
@@ -169,6 +169,18 @@ export default function NearMissReportBasicInfoScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Area */}
+        <View style={styles.fieldContainer}>
+          <Text style={styles.fieldLabel}>Area</Text>
+          <TextInput
+            style={styles.textInput}
+            value={area}
+            onChangeText={setArea}
+            placeholder="Where exactly did this happen on the job site?"
+            placeholderTextColor={colors.textSecondary}
+          />
+        </View>
+
         {/* Location */}
         <View style={styles.fieldContainer}>
           <Text style={styles.fieldLabel}>Location</Text>
@@ -221,18 +233,6 @@ export default function NearMissReportBasicInfoScreen() {
               </View>
             </View>
           )}
-        </View>
-
-        {/* Area */}
-        <View style={styles.fieldContainer}>
-          <Text style={styles.fieldLabel}>Area</Text>
-          <TextInput
-            style={styles.textInput}
-            value={area}
-            onChangeText={setArea}
-            placeholder="Where exactly did this happen on the job site?"
-            placeholderTextColor={colors.textSecondary}
-          />
         </View>
       </ScrollView>
 
