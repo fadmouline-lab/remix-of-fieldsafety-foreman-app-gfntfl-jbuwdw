@@ -43,15 +43,15 @@ const completedForms: CompletedForm[] = [
 ];
 
 const manageJobSiteForms: FormCard[] = [
-  { id: '1', titleKey: 'forms.extraWorkTickets' },
-  { id: '2', titleKey: 'forms.haulingDumpsters' },
+  { id: 'extra-work', titleKey: 'forms.extraWorkTickets' },
+  { id: 'hauling', titleKey: 'forms.haulingDumpsters' },
 ];
 
 const safetyForms: FormCard[] = [
-  { id: '1', titleKey: 'forms.equipmentInspection' },
-  { id: '2', titleKey: 'forms.observation' },
-  { id: '3', titleKey: 'forms.nearMiss' },
-  { id: '4', titleKey: 'forms.incident' },
+  { id: 'equipment-inspection', titleKey: 'forms.equipmentInspection' },
+  { id: 'observation', titleKey: 'forms.observation' },
+  { id: 'near-miss', titleKey: 'forms.nearMiss' },
+  { id: 'incident', titleKey: 'forms.incident' },
 ];
 
 export default function HomeScreen() {
@@ -62,7 +62,7 @@ export default function HomeScreen() {
   const [preTaskModalVisible, setPreTaskModalVisible] = useState(false);
 
   const handleFormPress = (formTitle: string, formId: string, tabType: TabType) => {
-    console.log('Form pressed:', formTitle);
+    console.log('Form pressed:', formTitle, 'ID:', formId);
     
     if (tabType === 'TODO') {
       if (formId === '1') {
@@ -73,14 +73,23 @@ export default function HomeScreen() {
         router.push('/daily-activity-log-1');
       }
     } else if (tabType === 'MORE_FORMS') {
-      if (formId === '1') {
+      // Manage Job-Site forms
+      if (formId === 'extra-work') {
         router.push('/extra-work-ticket-1');
-      } else if (formId === '2') {
+      } else if (formId === 'hauling') {
         router.push('/hauling-dumpsters-1');
-      } else if (formId === '3') {
-        // Near Miss - do nothing for now
+      }
+      // Safety forms
+      else if (formId === 'equipment-inspection') {
+        console.log('Equipment Inspection form - not implemented yet');
+        // Do nothing for now - workflow not created yet
+      } else if (formId === 'observation') {
+        console.log('Observation form - not implemented yet');
+        // Do nothing for now - workflow not created yet
+      } else if (formId === 'near-miss') {
         console.log('Near Miss form - not implemented yet');
-      } else if (formId === '4') {
+        // Do nothing for now - workflow not created yet
+      } else if (formId === 'incident') {
         router.push('/incident-report-1');
       }
     }

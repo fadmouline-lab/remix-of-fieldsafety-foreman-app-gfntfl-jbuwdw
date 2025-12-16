@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Platform,
   Modal,
+  TextInput,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
@@ -54,9 +55,14 @@ export default function IncidentReportWorkerScreen() {
   };
 
   const handleTimeChange = (event: any, selectedTime?: Date) => {
-    setShowTimePicker(false);
+    if (Platform.OS === 'android') {
+      setShowTimePicker(false);
+    }
     if (selectedTime) {
       setIncidentTime(selectedTime);
+      if (Platform.OS === 'ios') {
+        setShowTimePicker(false);
+      }
     }
   };
 
@@ -184,14 +190,15 @@ export default function IncidentReportWorkerScreen() {
             </View>
           ) : (
             <View style={styles.editLocationContainer}>
-              <View style={styles.textInputWrapper}>
-                <Text
-                  style={styles.textInput}
-                  onPress={() => console.log('Edit location')}
-                >
-                  {tempLocation}
-                </Text>
-              </View>
+              <TextInput
+                style={styles.textInput}
+                value={tempLocation}
+                onChangeText={setTempLocation}
+                placeholder="Enter location"
+                placeholderTextColor={colors.textSecondary}
+                multiline
+                autoFocus
+              />
               <View style={styles.editActions}>
                 <TouchableOpacity onPress={handleLocationConfirm} style={styles.actionButton}>
                   <IconSymbol
@@ -280,8 +287,52 @@ export default function IncidentReportWorkerScreen() {
         </TouchableOpacity>
       </Modal>
 
-      {/* Time Picker */}
-      {showTimePicker && (
+      {/* Time Picker Modal for iOS */}
+      {Platform.OS === 'ios' && showTimePicker && (
+        <Modal
+          visible={showTimePicker}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowTimePicker(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowTimePicker(false)}
+          >
+            <View style={styles.timePickerContainer}>
+              <View style={styles.timePickerHeader}>
+                <Text style={styles.pickerTitle}>Select Time</Text>
+                <TouchableOpacity onPress={() => setShowTimePicker(false)}>
+                  <IconSymbol
+                    ios_icon_name="xmark"
+                    android_material_icon_name="close"
+                    size={24}
+                    color={colors.text}
+                  />
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={incidentTime}
+                mode="time"
+                is24Hour={false}
+                display="spinner"
+                onChange={handleTimeChange}
+                style={styles.timePicker}
+              />
+              <TouchableOpacity
+                style={styles.doneButton}
+                onPress={() => setShowTimePicker(false)}
+              >
+                <Text style={styles.doneButtonText}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+      )}
+
+      {/* Time Picker for Android */}
+      {Platform.OS === 'android' && showTimePicker && (
         <DateTimePicker
           value={incidentTime}
           mode="time"
@@ -389,19 +440,19 @@ const styles = StyleSheet.create({
   editLocationContainer: {
     gap: 12,
   },
-  textInputWrapper: {
+  textInput: {
     backgroundColor: colors.card,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
     borderColor: colors.primary,
-    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
-    elevation: 3,
-  },
-  textInput: {
     fontSize: 16,
     fontWeight: '500',
     color: colors.text,
+    minHeight: 60,
+    textAlignVertical: 'top',
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
+    elevation: 3,
   },
   editActions: {
     flexDirection: 'row',
@@ -489,5 +540,36 @@ const styles = StyleSheet.create({
   workerTitle: {
     fontSize: 14,
     color: colors.textSecondary,
+  },
+  timePickerContainer: {
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    width: '100%',
+    maxWidth: 400,
+    padding: 20,
+    boxShadow: '0px 4px 16px rgba(0, 0, 0, 0.2)',
+    elevation: 8,
+  },
+  timePickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  timePicker: {
+    width: '100%',
+    height: 200,
+  },
+  doneButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  doneButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.card,
   },
 });
