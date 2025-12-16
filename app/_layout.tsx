@@ -131,6 +131,22 @@ export default function RootLayout() {
                   options={{ headerShown: false }}
                 />
                 <Stack.Screen
+                  name="time-cards-1"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                  name="time-cards-2"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                  name="hauling-dumpsters-1"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                  name="hauling-dumpsters-2"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
                   name="modal"
                   options={{
                     presentation: "modal",
