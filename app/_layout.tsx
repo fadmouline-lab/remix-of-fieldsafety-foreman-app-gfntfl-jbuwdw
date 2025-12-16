@@ -131,6 +131,10 @@ export default function RootLayout() {
                   options={{ headerShown: false }}
                 />
                 <Stack.Screen
+                  name="daily-activity-log-3"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
                   name="time-cards-1"
                   options={{ headerShown: false }}
                 />
