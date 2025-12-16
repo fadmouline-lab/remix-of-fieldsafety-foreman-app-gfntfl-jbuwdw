@@ -82,28 +82,41 @@ export default function DailyActivityLogPage3() {
 
   return (
     <View style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <IconSymbol
+            ios_icon_name="chevron.left"
+            android_material_icon_name="arrow-back"
+            size={24}
+            color={colors.text}
+          />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Daily Activity Log – Summary</Text>
+        <View style={styles.placeholder} />
+      </View>
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header Info Card */}
-        <View style={styles.headerInfoCard}>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Date:</Text>
-            <Text style={styles.infoValue}>{getCurrentDate()}</Text>
+        {/* Summary Info Section */}
+        <View style={styles.summaryInfoSection}>
+          <View style={styles.summaryInfoRow}>
+            <Text style={styles.summaryInfoLabel}>Date:</Text>
+            <Text style={styles.summaryInfoValue}>{getCurrentDate()}</Text>
           </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Time:</Text>
-            <Text style={styles.infoValue}>{getCurrentTime()}</Text>
+          <View style={styles.summaryInfoRow}>
+            <Text style={styles.summaryInfoLabel}>Time:</Text>
+            <Text style={styles.summaryInfoValue}>{getCurrentTime()}</Text>
           </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>User:</Text>
-            <Text style={styles.infoValue}>John Smith (Foreman)</Text>
+          <View style={styles.summaryInfoRow}>
+            <Text style={styles.summaryInfoLabel}>User:</Text>
+            <Text style={styles.summaryInfoValue}>John Smith (Foreman)</Text>
           </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Job Location:</Text>
-            <Text style={styles.infoValue}>UIC Construction Site, Chicago, IL 60611</Text>
+          <View style={styles.summaryInfoRow}>
+            <Text style={styles.summaryInfoLabel}>Job Location:</Text>
+            <Text style={styles.summaryInfoValue}>UIC Construction Site, Chicago, IL 60611</Text>
           </View>
         </View>
 
@@ -251,6 +264,24 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     paddingTop: Platform.OS === 'android' ? 48 : 60,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+  },
+  backButton: {
+    padding: 8,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  placeholder: {
+    width: 40,
+  },
   scrollView: {
     flex: 1,
   },
@@ -259,28 +290,28 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 120,
   },
-  headerInfoCard: {
-    backgroundColor: colors.primary,
+  summaryInfoSection: {
+    backgroundColor: colors.card,
     borderRadius: 12,
     padding: 20,
     marginBottom: 24,
     boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
     elevation: 3,
   },
-  infoRow: {
+  summaryInfoRow: {
     flexDirection: 'row',
     marginBottom: 12,
   },
-  infoLabel: {
+  summaryInfoLabel: {
     fontSize: 14,
     fontWeight: '700',
-    color: colors.card,
+    color: colors.textSecondary,
     width: 100,
   },
-  infoValue: {
+  summaryInfoValue: {
     fontSize: 14,
-    fontWeight: '400',
-    color: colors.card,
+    fontWeight: '500',
+    color: colors.text,
     flex: 1,
   },
   summarySection: {
