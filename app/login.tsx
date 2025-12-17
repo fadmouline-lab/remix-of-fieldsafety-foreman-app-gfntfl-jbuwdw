@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,26 +9,65 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { signIn, session, currentEmployee, assignedProjects, loading: authLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleSignIn = () => {
-    console.log('Sign in pressed', { email, password });
-    router.push('/select-project');
+  // Redirect if already logged in
+  useEffect(() => {
+    if (!authLoading && session && currentEmployee) {
+      console.log('User already logged in, redirecting...');
+      router.replace('/select-project');
+    }
+  }, [session, currentEmployee, authLoading]);
+
+  const handleSignIn = async () => {
+    if (!email || !password) {
+      alert('Please enter both email and password');
+      return;
+    }
+
+    console.log('Attempting sign in...');
+    setLoading(true);
+    
+    try {
+      const { error } = await signIn(email, password);
+      
+      if (!error) {
+        console.log('Sign in successful, navigating to select project');
+        router.replace('/select-project');
+      }
+    } catch (error) {
+      console.error('Sign in error:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleForgotPassword = () => {
     console.log('Forgot password pressed');
     router.push('/forgot-password');
   };
+
+  if (authLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.loadingText}>Loading...</Text>
+      </View>
+    );
+  }
 
   return (
     <KeyboardAvoidingView
@@ -56,6 +95,7 @@ export default function LoginScreen() {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
+                editable={!loading}
               />
             </View>
 
@@ -71,10 +111,12 @@ export default function LoginScreen() {
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
                   autoCorrect={false}
+                  editable={!loading}
                 />
                 <TouchableOpacity
                   style={styles.eyeIcon}
                   onPress={() => setShowPassword(!showPassword)}
+                  disabled={loading}
                 >
                   <IconSymbol
                     ios_icon_name={showPassword ? 'eye.slash' : 'eye'}
@@ -87,15 +129,21 @@ export default function LoginScreen() {
             </View>
 
             <TouchableOpacity
-              style={buttonStyles.primary}
+              style={[buttonStyles.primary, loading && styles.buttonDisabled]}
               onPress={handleSignIn}
+              disabled={loading}
             >
-              <Text style={buttonStyles.primaryText}>Sign In</Text>
+              {loading ? (
+                <ActivityIndicator color={colors.card} />
+              ) : (
+                <Text style={buttonStyles.primaryText}>Sign In</Text>
+              )}
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.forgotPasswordButton}
               onPress={handleForgotPassword}
+              disabled={loading}
             >
               <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
             </TouchableOpacity>
@@ -110,6 +158,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: colors.text,
   },
   scrollContent: {
     flexGrow: 1,
@@ -173,5 +232,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.primary,
     fontWeight: '500',
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
 });

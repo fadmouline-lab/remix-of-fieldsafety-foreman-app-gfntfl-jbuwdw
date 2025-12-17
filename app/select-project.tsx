@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,61 +7,57 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors, commonStyles } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
-
-interface Project {
-  id: string;
-  name: string;
-  address: string;
-  projectManager: string;
-  status: 'Live' | 'Completed';
-}
-
-const projects: Project[] = [
-  {
-    id: '1',
-    name: 'UIC',
-    address: 'Random Address, 60611',
-    projectManager: 'Sara',
-    status: 'Live',
-  },
-  {
-    id: '2',
-    name: 'North Lasalle',
-    address: 'Random Address, 60611',
-    projectManager: 'Yasmine',
-    status: 'Live',
-  },
-  {
-    id: '3',
-    name: 'South Wabash',
-    address: 'Random Address, 60611',
-    projectManager: 'Zach',
-    status: 'Live',
-  },
-  {
-    id: '4',
-    name: 'Burger King',
-    address: 'Random Address, 60611',
-    projectManager: 'Joanna',
-    status: 'Completed',
-  },
-];
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function SelectProjectScreen() {
   const router = useRouter();
+  const { 
+    currentEmployee, 
+    assignedProjects, 
+    setCurrentProject, 
+    loading,
+    session 
+  } = useAuth();
 
-  const handleProjectSelect = (project: Project) => {
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!loading && !session) {
+      console.log('No session, redirecting to login');
+      router.replace('/login');
+    }
+  }, [session, loading]);
+
+  // Redirect to account not setup if no employee record
+  useEffect(() => {
+    if (!loading && session && !currentEmployee) {
+      console.log('No employee record, redirecting to account not setup');
+      router.replace('/account-not-setup');
+    }
+  }, [currentEmployee, loading, session]);
+
+  const handleProjectSelect = (project: any) => {
     console.log('Selected project:', project);
+    setCurrentProject(project);
     router.push('/(tabs)/(home)/');
   };
 
   const handleBack = () => {
     router.back();
   };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.loadingText}>Loading projects...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -85,59 +81,84 @@ export default function SelectProjectScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {projects.map((project, index) => (
-          <TouchableOpacity
-            key={index}
-            style={styles.projectCard}
-            onPress={() => handleProjectSelect(project)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.projectHeader}>
-              <Text style={styles.projectName}>{project.name}</Text>
-              <View
-                style={[
-                  styles.statusPill,
-                  project.status === 'Live'
-                    ? styles.statusLive
-                    : styles.statusCompleted,
-                ]}
-              >
-                <Text style={styles.statusText}>{project.status}</Text>
+        {assignedProjects.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <IconSymbol
+              ios_icon_name="folder.badge.questionmark"
+              android_material_icon_name="folder-off"
+              size={64}
+              color={colors.textSecondary}
+            />
+            <Text style={styles.emptyTitle}>No Assigned Projects</Text>
+            <Text style={styles.emptyText}>
+              You don&apos;t have any projects assigned yet.{'\n'}
+              Please contact your manager.
+            </Text>
+          </View>
+        ) : (
+          assignedProjects.map((project, index) => (
+            <TouchableOpacity
+              key={index}
+              style={styles.projectCard}
+              onPress={() => handleProjectSelect(project)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.projectHeader}>
+                <Text style={styles.projectName}>{project.name}</Text>
+                <View
+                  style={[
+                    styles.statusPill,
+                    project.status === 'active'
+                      ? styles.statusLive
+                      : styles.statusCompleted,
+                  ]}
+                >
+                  <Text style={styles.statusText}>
+                    {project.status === 'active' ? 'Live' : project.status === 'completed' ? 'Completed' : 'Planning'}
+                  </Text>
+                </View>
               </View>
-            </View>
 
-            <View style={styles.projectDetails}>
-              <IconSymbol
-                ios_icon_name="location.fill"
-                android_material_icon_name="location-on"
-                size={16}
-                color={colors.textSecondary}
-              />
-              <Text style={styles.projectAddress}>{project.address}</Text>
-            </View>
-
-            <View style={styles.projectFooter}>
-              <View style={styles.pmChip}>
+              <View style={styles.projectDetails}>
                 <IconSymbol
-                  ios_icon_name="person.fill"
-                  android_material_icon_name="person"
-                  size={14}
+                  ios_icon_name="location.fill"
+                  android_material_icon_name="location-on"
+                  size={16}
                   color={colors.textSecondary}
                 />
-                <Text style={styles.pmText}>
-                  PM: {project.projectManager}
-                </Text>
+                <Text style={styles.projectAddress}>{project.location || 'No location specified'}</Text>
               </View>
 
-              <IconSymbol
-                ios_icon_name="chevron.right"
-                android_material_icon_name="chevron-right"
-                size={20}
-                color={colors.textSecondary}
-              />
-            </View>
-          </TouchableOpacity>
-        ))}
+              {project.project_number && (
+                <View style={styles.projectNumberContainer}>
+                  <Text style={styles.projectNumberLabel}>Project #:</Text>
+                  <Text style={styles.projectNumber}>{project.project_number}</Text>
+                </View>
+              )}
+
+              <View style={styles.projectFooter}>
+                <View style={styles.pmChip}>
+                  <IconSymbol
+                    ios_icon_name="building.2.fill"
+                    android_material_icon_name="business"
+                    size={14}
+                    color={colors.textSecondary}
+                  />
+                  <Text style={styles.pmText}>
+                    GC: {project.gc || 'N/A'}
+                  </Text>
+                </View>
+
+                <IconSymbol
+                  ios_icon_name="chevron.right"
+                  android_material_icon_name="chevron-right"
+                  size={20}
+                  color={colors.textSecondary}
+                />
+              </View>
+            </TouchableOpacity>
+          ))
+        )}
       </ScrollView>
     </View>
   );
@@ -148,6 +169,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
     paddingTop: Platform.OS === 'android' ? 48 : 60,
+  },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: colors.text,
   },
   header: {
     flexDirection: 'row',
@@ -178,6 +210,26 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 20,
     paddingBottom: 100,
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 40,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: colors.text,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 24,
   },
   projectCard: {
     backgroundColor: colors.card,
@@ -214,6 +266,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: colors.card,
+    textTransform: 'capitalize',
   },
   projectDetails: {
     flexDirection: 'row',
@@ -224,6 +277,21 @@ const styles = StyleSheet.create({
   projectAddress: {
     fontSize: 14,
     color: colors.textSecondary,
+  },
+  projectNumberContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 6,
+  },
+  projectNumberLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  projectNumber: {
+    fontSize: 12,
+    color: colors.text,
   },
   projectFooter: {
     flexDirection: 'row',

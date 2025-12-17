@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import { useRouter } from 'expo-router';
 import { colors, commonStyles } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 type TabType = 'TODO' | 'MORE_FORMS';
 
@@ -57,9 +58,26 @@ const safetyForms: FormCard[] = [
 export default function HomeScreen() {
   const router = useRouter();
   const { language, setLanguage, t } = useLanguage();
+  const { currentProject, currentEmployee, signOut, session } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('TODO');
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [preTaskModalVisible, setPreTaskModalVisible] = useState(false);
+
+  // Redirect to select project if no project selected
+  useEffect(() => {
+    if (session && currentEmployee && !currentProject) {
+      console.log('No project selected, redirecting to select project');
+      router.replace('/select-project');
+    }
+  }, [currentProject, session, currentEmployee]);
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!session) {
+      console.log('No session, redirecting to login');
+      router.replace('/login');
+    }
+  }, [session]);
 
   const handleFormPress = (formTitle: string, formId: string, tabType: TabType) => {
     console.log('Form pressed:', formTitle, 'ID:', formId);
@@ -96,9 +114,10 @@ export default function HomeScreen() {
     console.log('Edit pressed for form:', formId);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     console.log('Logging out...');
     setSettingsVisible(false);
+    await signOut();
     router.replace('/login');
   };
 
@@ -122,12 +141,15 @@ export default function HomeScreen() {
     router.push('/pre-task-select-tasks');
   };
 
+  const projectName = currentProject?.name || 'No Project Selected';
+  const contactPhone = currentEmployee?.phone_number || '(708) 999-7575';
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <View>
-            <Text style={styles.projectName}>UIC Project</Text>
+            <Text style={styles.projectName}>{projectName}</Text>
             <TouchableOpacity style={styles.contactRow}>
               <IconSymbol
                 ios_icon_name="phone.fill"
@@ -135,7 +157,7 @@ export default function HomeScreen() {
                 size={16}
                 color={colors.primary}
               />
-              <Text style={styles.contactText}>{t('home.contact')} (708) 999-7575</Text>
+              <Text style={styles.contactText}>{t('home.contact')} {contactPhone}</Text>
             </TouchableOpacity>
           </View>
           <TouchableOpacity
