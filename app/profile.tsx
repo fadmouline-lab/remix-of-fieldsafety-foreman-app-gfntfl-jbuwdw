@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,34 +7,78 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors, buttonStyles } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useLanguage } from '@/contexts/LanguageContext';
-
-interface ProfileField {
-  labelKey: string;
-  value: string;
-  isPassword?: boolean;
-}
-
-const profileData: ProfileField[] = [
-  { labelKey: 'profile.name', value: 'Juan Perez' },
-  { labelKey: 'profile.userId', value: 'FSP-00123' },
-  { labelKey: 'profile.email', value: 'juan.perez@example.com' },
-  { labelKey: 'profile.company', value: 'US Dismantlement' },
-  { labelKey: 'profile.role', value: 'Foreman' },
-  { labelKey: 'profile.password', value: '********', isPassword: true },
-];
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { t } = useLanguage();
+  const { currentEmployee } = useAuth();
+  
+  const [organizationName, setOrganizationName] = useState<string>('');
+  const [loadingOrg, setLoadingOrg] = useState(true);
+  const [orgError, setOrgError] = useState(false);
+
+  useEffect(() => {
+    const fetchOrganization = async () => {
+      if (!currentEmployee?.org_id) {
+        console.log('No org_id found in currentEmployee');
+        setLoadingOrg(false);
+        setOrgError(true);
+        return;
+      }
+
+      try {
+        console.log('Fetching organization with id:', currentEmployee.org_id);
+        const { data, error } = await supabase
+          .from('organizations')
+          .select('name')
+          .eq('id', currentEmployee.org_id)
+          .single();
+
+        if (error) {
+          console.error('Error fetching organization:', error);
+          setOrgError(true);
+        } else if (data) {
+          console.log('Organization fetched:', data.name);
+          setOrganizationName(data.name);
+        } else {
+          console.log('No organization data found');
+          setOrgError(true);
+        }
+      } catch (error) {
+        console.error('Exception fetching organization:', error);
+        setOrgError(true);
+      } finally {
+        setLoadingOrg(false);
+      }
+    };
+
+    fetchOrganization();
+  }, [currentEmployee?.org_id]);
 
   const handleBack = () => {
     router.back();
   };
+
+  // Construct display values from currentEmployee
+  const displayName = currentEmployee 
+    ? `${currentEmployee.first_name} ${currentEmployee.last_name}` 
+    : 'N/A';
+  const displayUserId = currentEmployee?.user_id || 'N/A';
+  const displayEmail = currentEmployee?.email || 'N/A';
+  const displayRole = currentEmployee?.role || 'N/A';
+  const displayCompany = loadingOrg 
+    ? '' 
+    : orgError 
+      ? 'Company unavailable' 
+      : organizationName || 'Company unavailable';
 
   return (
     <View style={styles.container}>
@@ -68,20 +112,47 @@ export default function ProfileScreen() {
             </View>
           </View>
 
-          {profileData.map((field, index) => (
-            <React.Fragment key={index}>
-              <View style={styles.fieldRow}>
-                <Text style={styles.fieldLabel}>{t(field.labelKey)}</Text>
-                <Text style={styles.fieldValue}>{field.value}</Text>
-              </View>
-              {field.isPassword && (
-                <Text style={styles.passwordNote}>
-                  {t('profile.passwordNote')}
-                </Text>
-              )}
-              {index < profileData.length - 1 && <View style={styles.divider} />}
-            </React.Fragment>
-          ))}
+          <View style={styles.fieldRow}>
+            <Text style={styles.fieldLabel}>{t('profile.name')}</Text>
+            <Text style={styles.fieldValue}>{displayName}</Text>
+          </View>
+          <View style={styles.divider} />
+
+          <View style={styles.fieldRow}>
+            <Text style={styles.fieldLabel}>{t('profile.userId')}</Text>
+            <Text style={styles.fieldValue}>{displayUserId}</Text>
+          </View>
+          <View style={styles.divider} />
+
+          <View style={styles.fieldRow}>
+            <Text style={styles.fieldLabel}>{t('profile.email')}</Text>
+            <Text style={styles.fieldValue}>{displayEmail}</Text>
+          </View>
+          <View style={styles.divider} />
+
+          <View style={styles.fieldRow}>
+            <Text style={styles.fieldLabel}>{t('profile.company')}</Text>
+            {loadingOrg ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Text style={styles.fieldValue}>{displayCompany}</Text>
+            )}
+          </View>
+          <View style={styles.divider} />
+
+          <View style={styles.fieldRow}>
+            <Text style={styles.fieldLabel}>{t('profile.role')}</Text>
+            <Text style={styles.fieldValue}>{displayRole}</Text>
+          </View>
+          <View style={styles.divider} />
+
+          <View style={styles.fieldRow}>
+            <Text style={styles.fieldLabel}>{t('profile.password')}</Text>
+            <Text style={styles.fieldValue}>********</Text>
+          </View>
+          <Text style={styles.passwordNote}>
+            {t('profile.passwordNote')}
+          </Text>
         </View>
 
         <TouchableOpacity
