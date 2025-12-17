@@ -21,10 +21,6 @@ import { AuthProvider } from "@/contexts/AuthContext";
 
 SplashScreen.preventAutoHideAsync();
 
-export const unstable_settings = {
-  initialRouteName: "login",
-};
-
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const networkState = useNetworkState();
@@ -89,142 +85,48 @@ export default function RootLayout() {
           <LanguageProvider>
             <WidgetProvider>
               <GestureHandlerRootView>
-                <Stack>
-                  <Stack.Screen name="login" options={{ headerShown: false }} />
-                  <Stack.Screen 
-                    name="forgot-password" 
-                    options={{ headerShown: false }} 
-                  />
-                  <Stack.Screen 
-                    name="select-project" 
-                    options={{ headerShown: false }} 
-                  />
-                  <Stack.Screen 
-                    name="profile" 
-                    options={{ headerShown: false }} 
-                  />
-                  <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                  <Stack.Screen
-                    name="pre-task-modal"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="pre-task-duplicate"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="pre-task-select-tasks"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="pre-task-select-workers"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="pre-task-summary"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="daily-activity-log-1"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="daily-activity-log-2"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="daily-activity-log-3"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="time-cards-1"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="time-cards-2"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="hauling-dumpsters-1"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="hauling-dumpsters-2"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="extra-work-ticket-1"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="extra-work-ticket-2"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="extra-work-ticket-3"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="extra-work-ticket-4"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="incident-report-1"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="incident-report-2"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="incident-report-3"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="incident-report-4"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="near-miss-report-1"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="near-miss-report-2"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="near-miss-report-3"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="observation-report-1"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="observation-report-2"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="observation-report-3"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="equipment-inspection-1"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="equipment-inspection-2"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="equipment-inspection-3"
-                    options={{ headerShown: false }}
-                  />
+                <Stack screenOptions={{ headerShown: false }}>
+                  <Stack.Screen name="index" />
+                  <Stack.Screen name="login" />
+                  <Stack.Screen name="forgot-password" />
+                  <Stack.Screen name="select-project" />
+                  <Stack.Screen name="profile" />
+                  <Stack.Screen name="(tabs)" />
+                  <Stack.Screen name="pre-task-modal" />
+                  <Stack.Screen name="pre-task-duplicate" />
+                  <Stack.Screen name="pre-task-select-tasks" />
+                  <Stack.Screen name="pre-task-select-workers" />
+                  <Stack.Screen name="pre-task-summary" />
+                  <Stack.Screen name="daily-activity-log-1" />
+                  <Stack.Screen name="daily-activity-log-2" />
+                  <Stack.Screen name="daily-activity-log-3" />
+                  <Stack.Screen name="time-cards-1" />
+                  <Stack.Screen name="time-cards-2" />
+                  <Stack.Screen name="hauling-dumpsters-1" />
+                  <Stack.Screen name="hauling-dumpsters-2" />
+                  <Stack.Screen name="extra-work-ticket-1" />
+                  <Stack.Screen name="extra-work-ticket-2" />
+                  <Stack.Screen name="extra-work-ticket-3" />
+                  <Stack.Screen name="extra-work-ticket-4" />
+                  <Stack.Screen name="incident-report-1" />
+                  <Stack.Screen name="incident-report-2" />
+                  <Stack.Screen name="incident-report-3" />
+                  <Stack.Screen name="incident-report-4" />
+                  <Stack.Screen name="near-miss-report-1" />
+                  <Stack.Screen name="near-miss-report-2" />
+                  <Stack.Screen name="near-miss-report-3" />
+                  <Stack.Screen name="observation-report-1" />
+                  <Stack.Screen name="observation-report-2" />
+                  <Stack.Screen name="observation-report-3" />
+                  <Stack.Screen name="equipment-inspection-1" />
+                  <Stack.Screen name="equipment-inspection-2" />
+                  <Stack.Screen name="equipment-inspection-3" />
                   <Stack.Screen
                     name="modal"
                     options={{
                       presentation: "modal",
                       title: "Standard Modal",
+                      headerShown: true,
                     }}
                   />
                   <Stack.Screen
@@ -232,6 +134,7 @@ export default function RootLayout() {
                     options={{
                       presentation: "formSheet",
                       title: "Form Sheet Modal",
+                      headerShown: true,
                       sheetGrabberVisible: true,
                       sheetAllowedDetents: [0.5, 0.8, 1.0],
                       sheetCornerRadius: 20,
@@ -244,10 +147,7 @@ export default function RootLayout() {
                       headerShown: false,
                     }}
                   />
-                  <Stack.Screen
-                    name="account-not-setup"
-                    options={{ headerShown: false }}
-                  />
+                  <Stack.Screen name="account-not-setup" />
                 </Stack>
                 <SystemBars style={"auto"} />
               </GestureHandlerRootView>

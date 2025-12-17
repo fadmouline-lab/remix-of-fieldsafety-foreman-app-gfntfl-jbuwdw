@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -21,24 +21,7 @@ export default function SelectProjectScreen() {
     assignedProjects, 
     setCurrentProject, 
     loading,
-    session 
   } = useAuth();
-
-  // Redirect to login if not authenticated
-  useEffect(() => {
-    if (!loading && !session) {
-      console.log('No session, redirecting to login');
-      router.replace('/login');
-    }
-  }, [session, loading]);
-
-  // Redirect to account not setup if no employee record
-  useEffect(() => {
-    if (!loading && session && !currentEmployee) {
-      console.log('No employee record, redirecting to account not setup');
-      router.replace('/account-not-setup');
-    }
-  }, [currentEmployee, loading, session]);
 
   const handleProjectSelect = (project: any) => {
     console.log('Selected project:', project);

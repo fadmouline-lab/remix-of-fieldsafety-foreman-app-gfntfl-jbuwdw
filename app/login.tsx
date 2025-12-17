@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -18,19 +18,11 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { signIn, session, currentEmployee, assignedProjects, loading: authLoading } = useAuth();
+  const { signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-
-  // Redirect if already logged in
-  useEffect(() => {
-    if (!authLoading && session && currentEmployee) {
-      console.log('User already logged in, redirecting...');
-      router.replace('/select-project');
-    }
-  }, [session, currentEmployee, authLoading]);
 
   const handleSignIn = async () => {
     if (!email || !password) {
@@ -59,15 +51,6 @@ export default function LoginScreen() {
     console.log('Forgot password pressed');
     router.push('/forgot-password');
   };
-
-  if (authLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Loading...</Text>
-      </View>
-    );
-  }
 
   return (
     <KeyboardAvoidingView
@@ -158,17 +141,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-  },
-  loadingContainer: {
-    flex: 1,
-    backgroundColor: colors.background,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: colors.text,
   },
   scrollContent: {
     flexGrow: 1,
