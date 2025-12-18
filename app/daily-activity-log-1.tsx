@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,20 +10,38 @@ import {
   Platform,
   Switch,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
-
-interface QuestionState {
-  value: boolean;
-  description: string;
-}
+import { useActivityLog } from '@/contexts/ActivityLogContext';
 
 export default function DailyActivityLogPage1() {
   const router = useRouter();
-  const [nearMiss, setNearMiss] = useState<QuestionState>({ value: false, description: '' });
-  const [incident, setIncident] = useState<QuestionState>({ value: false, description: '' });
-  const [observation, setObservation] = useState<QuestionState>({ value: false, description: '' });
+  const params = useLocalSearchParams();
+  const {
+    nearMiss,
+    incident,
+    observation,
+    setNearMiss,
+    setIncident,
+    setObservation,
+    loadActivityLogForEdit,
+    clearFormData,
+  } = useActivityLog();
+
+  // Load activity log for editing if editingId is provided
+  useEffect(() => {
+    const mode = params.mode as string;
+    const editingId = params.editingId as string;
+
+    if (mode === 'EDIT' && editingId) {
+      console.log('Loading activity log for edit:', editingId);
+      loadActivityLogForEdit(editingId);
+    } else {
+      // Clear form data when starting new
+      clearFormData();
+    }
+  }, [params.mode, params.editingId]);
 
   const handleNearMissToggle = (value: boolean) => {
     setNearMiss({ value, description: value ? nearMiss.description : '' });
@@ -41,14 +59,7 @@ export default function DailyActivityLogPage1() {
     console.log('Near Miss:', nearMiss);
     console.log('Incident:', incident);
     console.log('Observation:', observation);
-    router.push({
-      pathname: '/daily-activity-log-2',
-      params: {
-        nearMiss: JSON.stringify(nearMiss),
-        incident: JSON.stringify(incident),
-        observation: JSON.stringify(observation),
-      },
-    });
+    router.push('/daily-activity-log-2');
   };
 
   return (

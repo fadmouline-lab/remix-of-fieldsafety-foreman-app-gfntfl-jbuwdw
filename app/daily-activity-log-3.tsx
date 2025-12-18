@@ -8,32 +8,29 @@ import {
   TouchableOpacity,
   Platform,
   Image,
-  Alert,
+  ActivityIndicator,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
-
-interface QuestionState {
-  value: boolean;
-  description: string;
-}
-
-interface VoiceMemo {
-  id: string;
-  duration: string;
-}
+import { useActivityLog } from '@/contexts/ActivityLogContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function DailyActivityLogPage3() {
   const router = useRouter();
-  const params = useLocalSearchParams();
-
-  const nearMiss: QuestionState = params.nearMiss ? JSON.parse(params.nearMiss as string) : { value: false, description: '' };
-  const incident: QuestionState = params.incident ? JSON.parse(params.incident as string) : { value: false, description: '' };
-  const observation: QuestionState = params.observation ? JSON.parse(params.observation as string) : { value: false, description: '' };
-  const photos: string[] = params.photos ? JSON.parse(params.photos as string) : [];
-  const notes: string = (params.notes as string) || '';
-  const voiceMemos: VoiceMemo[] = params.voiceMemos ? JSON.parse(params.voiceMemos as string) : [];
+  const { currentEmployee, currentProject } = useAuth();
+  const {
+    nearMiss,
+    incident,
+    observation,
+    photos,
+    voiceMemos,
+    generalNotes,
+    submitActivityLog,
+    clearFormData,
+    loading,
+    editingActivityLogId,
+  } = useActivityLog();
 
   const getCurrentDate = () => {
     const date = new Date();
@@ -55,30 +52,24 @@ export default function DailyActivityLogPage3() {
     });
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     console.log('Submitting Daily Activity Log...');
-    console.log('All data:', {
-      nearMiss,
-      incident,
-      observation,
-      photos: photos.length,
-      notes,
-      voiceMemos: voiceMemos.length,
-    });
     
-    Alert.alert(
-      'Form Submitted',
-      'Your Daily Activity Log has been submitted successfully.',
-      [
-        {
-          text: 'OK',
-          onPress: () => {
-            router.push('/(tabs)/(home)');
-          },
-        },
-      ]
-    );
+    const success = await submitActivityLog();
+    
+    if (success) {
+      console.log('Activity log submitted successfully');
+      clearFormData();
+      router.push('/(tabs)/(home)');
+    }
   };
+
+  const employeeName = currentEmployee 
+    ? `${currentEmployee.first_name} ${currentEmployee.last_name}` 
+    : 'Unknown User';
+  const employeeRole = currentEmployee?.role || 'Employee';
+  const projectName = currentProject?.name || 'Unknown Project';
+  const projectLocation = currentProject?.location || 'Unknown Location';
 
   return (
     <View style={styles.container}>
@@ -112,11 +103,11 @@ export default function DailyActivityLogPage3() {
           </View>
           <View style={styles.summaryInfoRow}>
             <Text style={styles.summaryInfoLabel}>User:</Text>
-            <Text style={styles.summaryInfoValue}>John Smith (Foreman)</Text>
+            <Text style={styles.summaryInfoValue}>{employeeName} ({employeeRole})</Text>
           </View>
           <View style={styles.summaryInfoRow}>
             <Text style={styles.summaryInfoLabel}>Job Location:</Text>
-            <Text style={styles.summaryInfoValue}>UIC Construction Site, Chicago, IL 60611</Text>
+            <Text style={styles.summaryInfoValue}>{projectName}, {projectLocation}</Text>
           </View>
         </View>
 
@@ -193,7 +184,7 @@ export default function DailyActivityLogPage3() {
                 showsHorizontalScrollIndicator={false}
               >
                 {photos.map((photo, index) => (
-                  <Image key={index} source={{ uri: photo }} style={styles.photoThumbnail} />
+                  <Image key={index} source={{ uri: photo.uri }} style={styles.photoThumbnail} />
                 ))}
               </ScrollView>
             )}
@@ -203,9 +194,9 @@ export default function DailyActivityLogPage3() {
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Notes:</Text>
             </View>
-            {notes ? (
+            {generalNotes ? (
               <View style={styles.descriptionBox}>
-                <Text style={styles.descriptionText}>{notes}</Text>
+                <Text style={styles.descriptionText}>{generalNotes}</Text>
               </View>
             ) : (
               <Text style={styles.emptyText}>No notes added</Text>
@@ -241,17 +232,24 @@ export default function DailyActivityLogPage3() {
         {/* Prepared By */}
         <View style={styles.preparedByCard}>
           <Text style={styles.preparedByLabel}>Prepared By:</Text>
-          <Text style={styles.preparedByValue}>John Smith (Foreman)</Text>
+          <Text style={styles.preparedByValue}>{employeeName} ({employeeRole})</Text>
         </View>
       </ScrollView>
 
       <View style={styles.footer}>
         <TouchableOpacity
-          style={styles.submitButton}
+          style={[styles.submitButton, loading && styles.submitButtonDisabled]}
           onPress={handleSubmit}
           activeOpacity={0.7}
+          disabled={loading}
         >
-          <Text style={styles.submitButtonText}>SUBMIT REPORT</Text>
+          {loading ? (
+            <ActivityIndicator size="small" color={colors.card} />
+          ) : (
+            <Text style={styles.submitButtonText}>
+              {editingActivityLogId ? 'UPDATE REPORT' : 'SUBMIT REPORT'}
+            </Text>
+          )}
         </TouchableOpacity>
       </View>
     </View>
@@ -452,6 +450,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  submitButtonDisabled: {
+    opacity: 0.6,
   },
   submitButtonText: {
     fontSize: 16,

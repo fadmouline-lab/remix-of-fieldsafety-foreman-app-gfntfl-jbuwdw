@@ -26,7 +26,7 @@ interface FormCard {
 
 interface CompletedForm {
   id: string;
-  type: 'ptp' | 'timecard';
+  type: 'ptp' | 'timecard' | 'activitylog';
   submitted_time: string;
   updated_at?: string;
   revision: number;
@@ -121,6 +121,17 @@ export default function HomeScreen() {
         console.error('Error fetching completed Time Card forms:', timeCardError);
       }
 
+      // Load Daily Activity Log forms
+      const { data: activityLogData, error: activityLogError } = await supabase
+        .from('daily_activity_logs')
+        .select('id, submitted_time, updated_at, revision')
+        .eq('org_id', currentEmployee.org_id)
+        .eq('project_id', currentProject.id);
+
+      if (activityLogError) {
+        console.error('Error fetching completed Activity Log forms:', activityLogError);
+      }
+
       // Combine and transform forms
       const allForms: CompletedForm[] = [];
 
@@ -146,6 +157,21 @@ export default function HomeScreen() {
           allForms.push({
             id: form.id,
             type: 'timecard',
+            submitted_time: form.submitted_time,
+            updated_at: form.updated_at,
+            revision: form.revision,
+            display_time: displayTime,
+          });
+        });
+      }
+
+      // Add Activity Log forms
+      if (activityLogData) {
+        activityLogData.forEach((form) => {
+          const displayTime = form.updated_at || form.submitted_time;
+          allForms.push({
+            id: form.id,
+            type: 'activitylog',
             submitted_time: form.submitted_time,
             updated_at: form.updated_at,
             revision: form.revision,
@@ -217,6 +243,17 @@ export default function HomeScreen() {
     console.log('Edit Time Card pressed for form:', formId);
     router.push({
       pathname: '/time-cards-1',
+      params: {
+        mode: 'EDIT',
+        editingId: formId,
+      },
+    });
+  };
+
+  const handleEditActivityLogPress = (formId: string) => {
+    console.log('Edit Activity Log pressed for form:', formId);
+    router.push({
+      pathname: '/daily-activity-log-1',
       params: {
         mode: 'EDIT',
         editingId: formId,
@@ -394,37 +431,52 @@ export default function HomeScreen() {
               </View>
             ) : (
               <React.Fragment>
-                {completedForms.map((form, index) => (
-                  <View key={`${form.type}-${index}`} style={styles.completedCard}>
-                    <View style={styles.completedCardContent}>
-                      <View style={styles.completedTitleRow}>
-                        <Text style={styles.completedFormTitle}>
-                          {form.type === 'ptp' ? 'Daily Pre-Task Checklist' : 'Time Cards'}
+                {completedForms.map((form, index) => {
+                  let formTitle = '';
+                  if (form.type === 'ptp') {
+                    formTitle = 'Daily Pre-Task Checklist';
+                  } else if (form.type === 'timecard') {
+                    formTitle = 'Time Cards';
+                  } else if (form.type === 'activitylog') {
+                    formTitle = 'Daily Activity Log';
+                  }
+
+                  return (
+                    <View key={`${form.type}-${index}`} style={styles.completedCard}>
+                      <View style={styles.completedCardContent}>
+                        <View style={styles.completedTitleRow}>
+                          <Text style={styles.completedFormTitle}>
+                            {formTitle}
+                          </Text>
+                          {form.revision > 1 && (
+                            <View style={styles.editedBadge}>
+                              <Text style={styles.editedBadgeText}>Edited</Text>
+                            </View>
+                          )}
+                        </View>
+                        <Text style={styles.submittedDate}>
+                          {form.updated_at
+                            ? `Updated on: ${formatSubmittedDate(form.updated_at)}`
+                            : `${t('home.submittedOn')} ${formatSubmittedDate(form.submitted_time)}`}
                         </Text>
-                        {form.revision > 1 && (
-                          <View style={styles.editedBadge}>
-                            <Text style={styles.editedBadgeText}>Edited</Text>
-                          </View>
-                        )}
                       </View>
-                      <Text style={styles.submittedDate}>
-                        {form.updated_at
-                          ? `Updated on: ${formatSubmittedDate(form.updated_at)}`
-                          : `${t('home.submittedOn')} ${formatSubmittedDate(form.submitted_time)}`}
-                      </Text>
+                      <TouchableOpacity
+                        style={styles.editButton}
+                        onPress={() => {
+                          if (form.type === 'ptp') {
+                            handleEditPtpPress(form.id);
+                          } else if (form.type === 'timecard') {
+                            handleEditTimeCardPress(form.id);
+                          } else if (form.type === 'activitylog') {
+                            handleEditActivityLogPress(form.id);
+                          }
+                        }}
+                      >
+                        <Text style={styles.editButtonText}>{t('home.edit')}</Text>
+                      </TouchableOpacity>
                     </View>
-                    <TouchableOpacity
-                      style={styles.editButton}
-                      onPress={() =>
-                        form.type === 'ptp'
-                          ? handleEditPtpPress(form.id)
-                          : handleEditTimeCardPress(form.id)
-                      }
-                    >
-                      <Text style={styles.editButtonText}>{t('home.edit')}</Text>
-                    </TouchableOpacity>
-                  </View>
-                ))}
+                  );
+                })}
               </React.Fragment>
             )}
           </View>

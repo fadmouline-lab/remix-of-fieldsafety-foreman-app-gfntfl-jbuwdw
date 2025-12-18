@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -11,23 +11,24 @@ import {
   Image,
   Alert,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import * as ImagePicker from 'expo-image-picker';
-
-interface VoiceMemo {
-  id: string;
-  duration: string;
-}
+import { useActivityLog } from '@/contexts/ActivityLogContext';
 
 export default function DailyActivityLogPage2() {
   const router = useRouter();
-  const params = useLocalSearchParams();
-  const [photos, setPhotos] = useState<string[]>([]);
-  const [notes, setNotes] = useState('');
-  const [voiceMemos, setVoiceMemos] = useState<VoiceMemo[]>([]);
-  const [isRecording, setIsRecording] = useState(false);
+  const {
+    photos,
+    voiceMemos,
+    generalNotes,
+    setPhotos,
+    setVoiceMemos,
+    setGeneralNotes,
+  } = useActivityLog();
+
+  const [isRecording, setIsRecording] = React.useState(false);
 
   const handleTakePhoto = async () => {
     try {
@@ -45,7 +46,12 @@ export default function DailyActivityLogPage2() {
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setPhotos([...photos, result.assets[0].uri]);
+        const newPhoto = {
+          uri: result.assets[0].uri,
+          mimeType: 'image/jpeg',
+          isExisting: false,
+        };
+        setPhotos([...photos, newPhoto]);
       }
     } catch (error) {
       console.log('Error taking photo:', error);
@@ -61,10 +67,13 @@ export default function DailyActivityLogPage2() {
     console.log('Recording voice memo...');
     setIsRecording(true);
     
+    // Simulate recording for 1 second
     setTimeout(() => {
-      const newMemo: VoiceMemo = {
+      const newMemo = {
         id: Date.now().toString(),
         duration: '0:15',
+        durationSeconds: 15,
+        isExisting: false,
       };
       setVoiceMemos([...voiceMemos, newMemo]);
       setIsRecording(false);
@@ -77,20 +86,11 @@ export default function DailyActivityLogPage2() {
 
   const handleNext = () => {
     console.log('Navigating to summary page...');
-    console.log('Page 1 data:', params);
     console.log('Photos:', photos.length);
-    console.log('Notes:', notes);
+    console.log('Notes:', generalNotes);
     console.log('Voice Memos:', voiceMemos.length);
     
-    router.push({
-      pathname: '/daily-activity-log-3',
-      params: {
-        ...params,
-        photos: JSON.stringify(photos),
-        notes: notes,
-        voiceMemos: JSON.stringify(voiceMemos),
-      },
-    });
+    router.push('/daily-activity-log-3');
   };
 
   return (
@@ -139,7 +139,7 @@ export default function DailyActivityLogPage2() {
             >
               {photos.map((photo, index) => (
                 <View key={index} style={styles.photoContainer}>
-                  <Image source={{ uri: photo }} style={styles.photoThumbnail} />
+                  <Image source={{ uri: photo.uri }} style={styles.photoThumbnail} />
                   <TouchableOpacity
                     style={styles.removePhotoButton}
                     onPress={() => handleRemovePhoto(index)}
@@ -165,8 +165,8 @@ export default function DailyActivityLogPage2() {
             placeholder="Add notes about today's activity…"
             placeholderTextColor={colors.textSecondary}
             multiline
-            value={notes}
-            onChangeText={setNotes}
+            value={generalNotes}
+            onChangeText={setGeneralNotes}
             textAlignVertical="top"
           />
         </View>

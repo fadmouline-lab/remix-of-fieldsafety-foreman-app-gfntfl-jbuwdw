@@ -18,6 +18,7 @@ import { StatusBar } from "expo-status-bar";
 import { WidgetProvider } from "@/contexts/WidgetContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ActivityLogProvider } from "@/contexts/ActivityLogContext";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -83,75 +84,77 @@ export default function RootLayout() {
       >
         <AuthProvider>
           <LanguageProvider>
-            <WidgetProvider>
-              <GestureHandlerRootView>
-                <Stack screenOptions={{ headerShown: false }}>
-                  <Stack.Screen name="index" />
-                  <Stack.Screen name="login" />
-                  <Stack.Screen name="forgot-password" />
-                  <Stack.Screen name="select-project" />
-                  <Stack.Screen name="profile" />
-                  <Stack.Screen name="(tabs)" />
-                  <Stack.Screen name="pre-task-modal" />
-                  <Stack.Screen name="pre-task-duplicate" />
-                  <Stack.Screen name="pre-task-select-tasks" />
-                  <Stack.Screen name="pre-task-select-workers" />
-                  <Stack.Screen name="pre-task-summary" />
-                  <Stack.Screen name="daily-activity-log-1" />
-                  <Stack.Screen name="daily-activity-log-2" />
-                  <Stack.Screen name="daily-activity-log-3" />
-                  <Stack.Screen name="time-cards-1" />
-                  <Stack.Screen name="time-cards-2" />
-                  <Stack.Screen name="hauling-dumpsters-1" />
-                  <Stack.Screen name="hauling-dumpsters-2" />
-                  <Stack.Screen name="extra-work-ticket-1" />
-                  <Stack.Screen name="extra-work-ticket-2" />
-                  <Stack.Screen name="extra-work-ticket-3" />
-                  <Stack.Screen name="extra-work-ticket-4" />
-                  <Stack.Screen name="incident-report-1" />
-                  <Stack.Screen name="incident-report-2" />
-                  <Stack.Screen name="incident-report-3" />
-                  <Stack.Screen name="incident-report-4" />
-                  <Stack.Screen name="near-miss-report-1" />
-                  <Stack.Screen name="near-miss-report-2" />
-                  <Stack.Screen name="near-miss-report-3" />
-                  <Stack.Screen name="observation-report-1" />
-                  <Stack.Screen name="observation-report-2" />
-                  <Stack.Screen name="observation-report-3" />
-                  <Stack.Screen name="equipment-inspection-1" />
-                  <Stack.Screen name="equipment-inspection-2" />
-                  <Stack.Screen name="equipment-inspection-3" />
-                  <Stack.Screen
-                    name="modal"
-                    options={{
-                      presentation: "modal",
-                      title: "Standard Modal",
-                      headerShown: true,
-                    }}
-                  />
-                  <Stack.Screen
-                    name="formsheet"
-                    options={{
-                      presentation: "formSheet",
-                      title: "Form Sheet Modal",
-                      headerShown: true,
-                      sheetGrabberVisible: true,
-                      sheetAllowedDetents: [0.5, 0.8, 1.0],
-                      sheetCornerRadius: 20,
-                    }}
-                  />
-                  <Stack.Screen
-                    name="transparent-modal"
-                    options={{
-                      presentation: "transparentModal",
-                      headerShown: false,
-                    }}
-                  />
-                  <Stack.Screen name="account-not-setup" />
-                </Stack>
-                <SystemBars style={"auto"} />
-              </GestureHandlerRootView>
-            </WidgetProvider>
+            <ActivityLogProvider>
+              <WidgetProvider>
+                <GestureHandlerRootView>
+                  <Stack screenOptions={{ headerShown: false }}>
+                    <Stack.Screen name="index" />
+                    <Stack.Screen name="login" />
+                    <Stack.Screen name="forgot-password" />
+                    <Stack.Screen name="select-project" />
+                    <Stack.Screen name="profile" />
+                    <Stack.Screen name="(tabs)" />
+                    <Stack.Screen name="pre-task-modal" />
+                    <Stack.Screen name="pre-task-duplicate" />
+                    <Stack.Screen name="pre-task-select-tasks" />
+                    <Stack.Screen name="pre-task-select-workers" />
+                    <Stack.Screen name="pre-task-summary" />
+                    <Stack.Screen name="daily-activity-log-1" />
+                    <Stack.Screen name="daily-activity-log-2" />
+                    <Stack.Screen name="daily-activity-log-3" />
+                    <Stack.Screen name="time-cards-1" />
+                    <Stack.Screen name="time-cards-2" />
+                    <Stack.Screen name="hauling-dumpsters-1" />
+                    <Stack.Screen name="hauling-dumpsters-2" />
+                    <Stack.Screen name="extra-work-ticket-1" />
+                    <Stack.Screen name="extra-work-ticket-2" />
+                    <Stack.Screen name="extra-work-ticket-3" />
+                    <Stack.Screen name="extra-work-ticket-4" />
+                    <Stack.Screen name="incident-report-1" />
+                    <Stack.Screen name="incident-report-2" />
+                    <Stack.Screen name="incident-report-3" />
+                    <Stack.Screen name="incident-report-4" />
+                    <Stack.Screen name="near-miss-report-1" />
+                    <Stack.Screen name="near-miss-report-2" />
+                    <Stack.Screen name="near-miss-report-3" />
+                    <Stack.Screen name="observation-report-1" />
+                    <Stack.Screen name="observation-report-2" />
+                    <Stack.Screen name="observation-report-3" />
+                    <Stack.Screen name="equipment-inspection-1" />
+                    <Stack.Screen name="equipment-inspection-2" />
+                    <Stack.Screen name="equipment-inspection-3" />
+                    <Stack.Screen
+                      name="modal"
+                      options={{
+                        presentation: "modal",
+                        title: "Standard Modal",
+                        headerShown: true,
+                      }}
+                    />
+                    <Stack.Screen
+                      name="formsheet"
+                      options={{
+                        presentation: "formSheet",
+                        title: "Form Sheet Modal",
+                        headerShown: true,
+                        sheetGrabberVisible: true,
+                        sheetAllowedDetents: [0.5, 0.8, 1.0],
+                        sheetCornerRadius: 20,
+                      }}
+                    />
+                    <Stack.Screen
+                      name="transparent-modal"
+                      options={{
+                        presentation: "transparentModal",
+                        headerShown: false,
+                      }}
+                    />
+                    <Stack.Screen name="account-not-setup" />
+                  </Stack>
+                  <SystemBars style={"auto"} />
+                </GestureHandlerRootView>
+              </WidgetProvider>
+            </ActivityLogProvider>
           </LanguageProvider>
         </AuthProvider>
       </ThemeProvider>
