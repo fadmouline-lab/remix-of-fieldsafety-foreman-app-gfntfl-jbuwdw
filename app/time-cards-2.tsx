@@ -163,20 +163,13 @@ export default function TimeCardsPage2Screen() {
 
     console.log('Workers inserted:', workerInserts.length);
 
-    // Success!
+    // Success! Navigate back to Dashboard immediately
     console.log('Time card submitted successfully! Navigating to dashboard...');
     setSubmitting(false);
     
-    // Navigate back to Dashboard immediately
-    Alert.alert('Success', 'Time card submitted successfully!', [
-      {
-        text: 'OK',
-        onPress: () => {
-          router.dismissAll();
-          router.replace('/(tabs)/(home)');
-        },
-      },
-    ]);
+    // Dismiss all modals and navigate to dashboard
+    router.dismissAll();
+    router.replace('/(tabs)/(home)');
   };
 
   const handleEditSubmit = async (timeCardId: string) => {
@@ -298,20 +291,13 @@ export default function TimeCardsPage2Screen() {
 
     console.log('Workers updated successfully');
 
-    // Success!
+    // Success! Navigate back to Dashboard immediately
     console.log('Time card updated successfully! Navigating to dashboard...');
     setSubmitting(false);
     
-    // Navigate back to Dashboard immediately
-    Alert.alert('Success', 'Time card updated successfully!', [
-      {
-        text: 'OK',
-        onPress: () => {
-          router.dismissAll();
-          router.replace('/(tabs)/(home)');
-        },
-      },
-    ]);
+    // Dismiss all modals and navigate to dashboard
+    router.dismissAll();
+    router.replace('/(tabs)/(home)');
   };
 
   const totalHours = workers.reduce((sum, worker) => sum + worker.hours, 0);
