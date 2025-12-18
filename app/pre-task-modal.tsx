@@ -11,6 +11,7 @@ import {
 import { useRouter } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface PreTaskModalProps {
   visible: boolean;
@@ -19,15 +20,22 @@ interface PreTaskModalProps {
 
 export default function PreTaskModal({ visible, onClose }: PreTaskModalProps) {
   const router = useRouter();
+  const { canDuplicatePreTask } = useAuth();
 
   const handleDuplicateYesterday = () => {
     onClose();
-    router.push('/pre-task-duplicate');
+    router.push({
+      pathname: '/pre-task-select-tasks',
+      params: { mode: 'DUPLICATE' },
+    });
   };
 
   const handleStartNew = () => {
     onClose();
-    router.push('/pre-task-select-tasks');
+    router.push({
+      pathname: '/pre-task-select-tasks',
+      params: { mode: 'CREATE' },
+    });
   };
 
   return (
@@ -53,17 +61,35 @@ export default function PreTaskModal({ visible, onClose }: PreTaskModalProps) {
 
           <View style={styles.buttonContainer}>
             <TouchableOpacity
-              style={styles.optionButton}
+              style={[
+                styles.optionButton,
+                !canDuplicatePreTask && styles.optionButtonDisabled,
+              ]}
               onPress={handleDuplicateYesterday}
               activeOpacity={0.7}
+              disabled={!canDuplicatePreTask}
             >
               <IconSymbol
                 ios_icon_name="doc.on.doc.fill"
                 android_material_icon_name="content-copy"
                 size={32}
-                color={colors.primary}
+                color={canDuplicatePreTask ? colors.primary : colors.textSecondary}
               />
-              <Text style={styles.buttonText}>Duplicate Yesterday</Text>
+              <View style={styles.buttonTextContainer}>
+                <Text
+                  style={[
+                    styles.buttonText,
+                    !canDuplicatePreTask && styles.buttonTextDisabled,
+                  ]}
+                >
+                  Duplicate Yesterday
+                </Text>
+                {!canDuplicatePreTask && (
+                  <Text style={styles.helperText}>
+                    No previous checklist was submitted for this project.
+                  </Text>
+                )}
+              </View>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -130,10 +156,23 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.border,
   },
+  optionButtonDisabled: {
+    opacity: 0.5,
+  },
+  buttonTextContainer: {
+    flex: 1,
+  },
   buttonText: {
     fontSize: 18,
     fontWeight: '600',
     color: colors.text,
-    flex: 1,
+  },
+  buttonTextDisabled: {
+    color: colors.textSecondary,
+  },
+  helperText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 4,
   },
 });

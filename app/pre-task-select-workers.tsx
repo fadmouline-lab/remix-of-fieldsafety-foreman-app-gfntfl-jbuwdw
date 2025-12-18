@@ -32,7 +32,7 @@ interface SelectedWorker {
 export default function PreTaskSelectWorkersScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const { currentEmployee } = useAuth();
+  const { currentEmployee, lastSubmittedPtpId } = useAuth();
   
   const [allWorkers, setAllWorkers] = useState<Employee[]>([]);
   const [displayedWorkers, setDisplayedWorkers] = useState<Employee[]>([]);
@@ -42,6 +42,8 @@ export default function PreTaskSelectWorkersScreen() {
   const [displayCount, setDisplayCount] = useState(10);
 
   const tasks = params.tasks ? JSON.parse(params.tasks as string) : [];
+  const mode = (params.mode as string) || 'CREATE';
+  const editingId = params.editingId as string | undefined;
 
   useEffect(() => {
     loadWorkers();
@@ -78,14 +80,19 @@ export default function PreTaskSelectWorkersScreen() {
         console.log('Workers loaded:', data?.length || 0);
         setAllWorkers(data || []);
         
-        // Auto-select the current employee
-        if (currentEmployee) {
-          const currentWorker = data?.find((w) => w.id === currentEmployee.id);
-          if (currentWorker) {
-            setSelectedWorkers([{
-              employee_id: currentWorker.id,
-              full_name: `${currentWorker.first_name} ${currentWorker.last_name}`,
-            }]);
+        // If in DUPLICATE or EDIT mode, preload selected workers
+        if ((mode === 'DUPLICATE' || mode === 'EDIT') && data) {
+          await preloadSelectedWorkers(data);
+        } else {
+          // Auto-select the current employee in CREATE mode
+          if (currentEmployee) {
+            const currentWorker = data?.find((w) => w.id === currentEmployee.id);
+            if (currentWorker) {
+              setSelectedWorkers([{
+                employee_id: currentWorker.id,
+                full_name: `${currentWorker.first_name} ${currentWorker.last_name}`,
+              }]);
+            }
           }
         }
       }
@@ -95,6 +102,43 @@ export default function PreTaskSelectWorkersScreen() {
       setAllWorkers([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const preloadSelectedWorkers = async (availableWorkers: Employee[]) => {
+    const sourceId = mode === 'EDIT' ? editingId : lastSubmittedPtpId;
+    
+    if (!sourceId) {
+      console.log('No source ID for preloading workers');
+      return;
+    }
+
+    console.log(`Preloading workers from ${mode} mode, source ID:`, sourceId);
+
+    try {
+      const { data, error } = await supabase
+        .from('submitted_ptp_workers')
+        .select('employee_id')
+        .eq('submitted_ptp_id', sourceId);
+
+      if (error) {
+        console.error('Error fetching previous workers:', error);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        const employeeIds = data.map((w) => w.employee_id);
+        const preselected = availableWorkers
+          .filter((worker) => employeeIds.includes(worker.id))
+          .map((worker) => ({
+            employee_id: worker.id,
+            full_name: `${worker.first_name} ${worker.last_name}`,
+          }));
+        console.log('Preselected workers:', preselected.length);
+        setSelectedWorkers(preselected);
+      }
+    } catch (error) {
+      console.error('Exception preloading workers:', error);
     }
   };
 
@@ -148,6 +192,8 @@ export default function PreTaskSelectWorkersScreen() {
       params: {
         tasks: JSON.stringify(tasks),
         workers: JSON.stringify(selectedWorkers),
+        mode,
+        editingId: editingId || '',
       },
     });
   };
@@ -188,7 +234,11 @@ export default function PreTaskSelectWorkersScreen() {
             color={colors.text}
           />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Pre-Task Card – Workers</Text>
+        <Text style={styles.headerTitle}>
+          Pre-Task Card – Workers
+          {mode === 'EDIT' && ' (Edit)'}
+          {mode === 'DUPLICATE' && ' (Duplicate)'}
+        </Text>
         <View style={styles.placeholder} />
       </View>
 

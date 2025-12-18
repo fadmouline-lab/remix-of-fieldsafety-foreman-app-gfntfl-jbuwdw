@@ -33,10 +33,13 @@ interface AuthContextType {
   assignedProjects: Project[];
   currentProject: Project | null;
   loading: boolean;
+  lastSubmittedPtpId: string | null;
+  canDuplicatePreTask: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   setCurrentProject: (project: Project | null) => void;
   refreshEmployeeData: () => Promise<void>;
+  checkForPreviousPtp: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -46,8 +49,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [currentEmployee, setCurrentEmployee] = useState<Employee | null>(null);
   const [assignedProjects, setAssignedProjects] = useState<Project[]>([]);
-  const [currentProject, setCurrentProject] = useState<Project | null>(null);
+  const [currentProject, setCurrentProjectState] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
+  const [lastSubmittedPtpId, setLastSubmittedPtpId] = useState<string | null>(null);
+  const [canDuplicatePreTask, setCanDuplicatePreTask] = useState(false);
+
+  // Check for previous PTP submission
+  const checkForPreviousPtp = async () => {
+    if (!currentEmployee || !currentProject) {
+      console.log('Cannot check for previous PTP: missing employee or project');
+      setCanDuplicatePreTask(false);
+      setLastSubmittedPtpId(null);
+      return;
+    }
+
+    console.log('Checking for previous PTP submission...');
+    
+    try {
+      const { data, error } = await supabase
+        .from('submitted_ptp')
+        .select('id')
+        .eq('project_id', currentProject.id)
+        .eq('submitted_by_employee_id', currentEmployee.id)
+        .order('submitted_time', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // No rows found
+          console.log('No previous PTP found');
+          setCanDuplicatePreTask(false);
+          setLastSubmittedPtpId(null);
+        } else {
+          console.error('Error checking for previous PTP:', error);
+          setCanDuplicatePreTask(false);
+          setLastSubmittedPtpId(null);
+        }
+      } else if (data) {
+        console.log('Previous PTP found:', data.id);
+        setLastSubmittedPtpId(data.id);
+        setCanDuplicatePreTask(true);
+      }
+    } catch (error) {
+      console.error('Exception checking for previous PTP:', error);
+      setCanDuplicatePreTask(false);
+      setLastSubmittedPtpId(null);
+    }
+  };
 
   // Load employee data from Supabase
   const loadEmployeeData = async (userId: string) => {
@@ -121,6 +170,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Set current project and check for previous PTP
+  const setCurrentProject = async (project: Project | null) => {
+    setCurrentProjectState(project);
+    if (project && currentEmployee) {
+      // Check for previous PTP when project is selected
+      await checkForPreviousPtp();
+    } else {
+      setCanDuplicatePreTask(false);
+      setLastSubmittedPtpId(null);
+    }
+  };
+
   // Initialize auth state
   useEffect(() => {
     console.log('Initializing auth state...');
@@ -153,12 +214,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         setCurrentEmployee(null);
         setAssignedProjects([]);
-        setCurrentProject(null);
+        setCurrentProjectState(null);
+        setCanDuplicatePreTask(false);
+        setLastSubmittedPtpId(null);
       }
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Check for previous PTP when employee or project changes
+  useEffect(() => {
+    if (currentEmployee && currentProject) {
+      checkForPreviousPtp();
+    }
+  }, [currentEmployee, currentProject]);
 
   const signIn = async (email: string, password: string) => {
     console.log('Signing in with email:', email);
@@ -207,7 +277,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('Sign out successful');
         setCurrentEmployee(null);
         setAssignedProjects([]);
-        setCurrentProject(null);
+        setCurrentProjectState(null);
+        setCanDuplicatePreTask(false);
+        setLastSubmittedPtpId(null);
       }
     } catch (error: any) {
       console.error('Sign out exception:', error);
@@ -232,10 +304,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         assignedProjects,
         currentProject,
         loading,
+        lastSubmittedPtpId,
+        canDuplicatePreTask,
         signIn,
         signOut,
         setCurrentProject,
         refreshEmployeeData,
+        checkForPreviousPtp,
       }}
     >
       {children}

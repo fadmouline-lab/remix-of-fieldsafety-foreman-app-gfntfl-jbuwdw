@@ -8,12 +8,14 @@ import {
   TouchableOpacity,
   Platform,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { colors, commonStyles } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 
 type TabType = 'TODO' | 'MORE_FORMS';
 
@@ -22,10 +24,10 @@ interface FormCard {
   titleKey: string;
 }
 
-interface CompletedForm {
+interface CompletedPtpForm {
   id: string;
-  titleKey: string;
-  submittedDate: string;
+  submitted_time: string;
+  revision: number;
 }
 
 const beforeJobStartForms: FormCard[] = [
@@ -35,12 +37,6 @@ const beforeJobStartForms: FormCard[] = [
 const afterJobCompletedForms: FormCard[] = [
   { id: '2', titleKey: 'forms.timeCards' },
   { id: '3', titleKey: 'forms.dailyActivityLog' },
-];
-
-const completedForms: CompletedForm[] = [
-  { id: '1', titleKey: 'forms.dailyPreTaskCompleted', submittedDate: 'May 4th 2023' },
-  { id: '2', titleKey: 'forms.timeCardsCompleted', submittedDate: 'May 4th 2023' },
-  { id: '3', titleKey: 'forms.dailyActivityLogCompleted', submittedDate: 'May 4th 2023' },
 ];
 
 const manageJobSiteForms: FormCard[] = [
@@ -62,6 +58,8 @@ export default function HomeScreen() {
   const [activeTab, setActiveTab] = useState<TabType>('TODO');
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [preTaskModalVisible, setPreTaskModalVisible] = useState(false);
+  const [completedPtpForms, setCompletedPtpForms] = useState<CompletedPtpForm[]>([]);
+  const [loadingCompletedForms, setLoadingCompletedForms] = useState(false);
 
   // Redirect to select project if no project selected
   useEffect(() => {
@@ -78,6 +76,47 @@ export default function HomeScreen() {
       router.replace('/login');
     }
   }, [session]);
+
+  // Load completed forms when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      if (currentEmployee && currentProject) {
+        loadCompletedForms();
+      }
+    }, [currentEmployee, currentProject])
+  );
+
+  const loadCompletedForms = async () => {
+    if (!currentEmployee || !currentProject) {
+      console.log('Cannot load completed forms: missing employee or project');
+      return;
+    }
+
+    console.log('Loading completed PTP forms...');
+    setLoadingCompletedForms(true);
+
+    try {
+      const { data, error } = await supabase
+        .from('submitted_ptp')
+        .select('id, submitted_time, revision')
+        .eq('org_id', currentEmployee.org_id)
+        .eq('project_id', currentProject.id)
+        .order('submitted_time', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching completed forms:', error);
+        setCompletedPtpForms([]);
+      } else {
+        console.log('Completed forms loaded:', data?.length || 0);
+        setCompletedPtpForms(data || []);
+      }
+    } catch (error) {
+      console.error('Exception loading completed forms:', error);
+      setCompletedPtpForms([]);
+    } finally {
+      setLoadingCompletedForms(false);
+    }
+  };
 
   const handleFormPress = (formTitle: string, formId: string, tabType: TabType) => {
     console.log('Form pressed:', formTitle, 'ID:', formId);
@@ -112,6 +151,13 @@ export default function HomeScreen() {
 
   const handleEditPress = (formId: string) => {
     console.log('Edit pressed for form:', formId);
+    router.push({
+      pathname: '/pre-task-select-tasks',
+      params: {
+        mode: 'EDIT',
+        editingId: formId,
+      },
+    });
   };
 
   const handleLogout = async () => {
@@ -133,12 +179,27 @@ export default function HomeScreen() {
 
   const handleDuplicateYesterday = () => {
     setPreTaskModalVisible(false);
-    router.push('/pre-task-duplicate');
+    router.push({
+      pathname: '/pre-task-select-tasks',
+      params: { mode: 'DUPLICATE' },
+    });
   };
 
   const handleStartNew = () => {
     setPreTaskModalVisible(false);
-    router.push('/pre-task-select-tasks');
+    router.push({
+      pathname: '/pre-task-select-tasks',
+      params: { mode: 'CREATE' },
+    });
+  };
+
+  const formatSubmittedDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
   };
 
   const projectName = currentProject?.name || 'No Project Selected';
@@ -255,22 +316,45 @@ export default function HomeScreen() {
             <Text style={[styles.sectionTitle, styles.sectionTitleMargin]}>
               {t('home.completedForms')}
             </Text>
-            {completedForms.map((form, index) => (
-              <View key={index} style={styles.completedCard}>
-                <View style={styles.completedCardContent}>
-                  <Text style={styles.completedFormTitle}>{t(form.titleKey)}</Text>
-                  <Text style={styles.submittedDate}>
-                    {t('home.submittedOn')} {form.submittedDate}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.editButton}
-                  onPress={() => handleEditPress(form.id)}
-                >
-                  <Text style={styles.editButtonText}>{t('home.edit')}</Text>
-                </TouchableOpacity>
+            
+            {loadingCompletedForms ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={styles.loadingText}>Loading completed forms...</Text>
               </View>
-            ))}
+            ) : completedPtpForms.length === 0 ? (
+              <View style={styles.emptyCompletedContainer}>
+                <Text style={styles.emptyCompletedText}>
+                  No completed forms yet.
+                </Text>
+              </View>
+            ) : (
+              completedPtpForms.map((form, index) => (
+                <View key={index} style={styles.completedCard}>
+                  <View style={styles.completedCardContent}>
+                    <View style={styles.completedTitleRow}>
+                      <Text style={styles.completedFormTitle}>
+                        Daily Pre-Task Checklist
+                      </Text>
+                      {form.revision > 1 && (
+                        <View style={styles.editedBadge}>
+                          <Text style={styles.editedBadgeText}>Edited</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={styles.submittedDate}>
+                      {t('home.submittedOn')} {formatSubmittedDate(form.submitted_time)}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.editButton}
+                    onPress={() => handleEditPress(form.id)}
+                  >
+                    <Text style={styles.editButtonText}>{t('home.edit')}</Text>
+                  </TouchableOpacity>
+                </View>
+              ))
+            )}
           </View>
         ) : (
           <View>
@@ -319,22 +403,12 @@ export default function HomeScreen() {
             <Text style={[styles.sectionTitle, styles.sectionTitleMargin]}>
               {t('home.completedForms')}
             </Text>
-            {completedForms.map((form, index) => (
-              <View key={index} style={styles.completedCard}>
-                <View style={styles.completedCardContent}>
-                  <Text style={styles.completedFormTitle}>{t(form.titleKey)}</Text>
-                  <Text style={styles.submittedDate}>
-                    {t('home.submittedOn')} {form.submittedDate}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.editButton}
-                  onPress={() => handleEditPress(form.id)}
-                >
-                  <Text style={styles.editButtonText}>{t('home.edit')}</Text>
-                </TouchableOpacity>
-              </View>
-            ))}
+            
+            <View style={styles.emptyCompletedContainer}>
+              <Text style={styles.emptyCompletedText}>
+                No completed forms in this section yet.
+              </Text>
+            </View>
           </View>
         )}
       </ScrollView>
@@ -610,6 +684,26 @@ const styles = StyleSheet.create({
   addIconContainer: {
     marginLeft: 12,
   },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  emptyCompletedContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  emptyCompletedText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
   completedCard: {
     backgroundColor: colors.highlight,
     borderRadius: 12,
@@ -622,11 +716,28 @@ const styles = StyleSheet.create({
   completedCardContent: {
     flex: 1,
   },
+  completedTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
   completedFormTitle: {
     fontSize: 14,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 4,
+  },
+  editedBadge: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  editedBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.card,
+    letterSpacing: 0.5,
   },
   submittedDate: {
     fontSize: 12,

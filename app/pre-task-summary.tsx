@@ -31,11 +31,13 @@ interface SelectedWorker {
 export default function PreTaskSummaryScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const { currentEmployee, currentProject } = useAuth();
+  const { currentEmployee, currentProject, checkForPreviousPtp } = useAuth();
   const [submitting, setSubmitting] = useState(false);
 
   const tasks: PreTaskCard[] = params.tasks ? JSON.parse(params.tasks as string) : [];
   const workers: SelectedWorker[] = params.workers ? JSON.parse(params.workers as string) : [];
+  const mode = (params.mode as string) || 'CREATE';
+  const editingId = params.editingId as string | undefined;
 
   const dateCreated = new Date().toLocaleDateString('en-US', {
     year: 'numeric',
@@ -65,95 +67,216 @@ export default function PreTaskSummaryScreen() {
       return;
     }
 
-    console.log('Submitting PTP form...');
+    console.log(`Submitting PTP form in ${mode} mode...`);
     setSubmitting(true);
 
     try {
-      // Step 1: Insert into submitted_ptp
-      const { data: submittedPtp, error: ptpError } = await supabase
-        .from('submitted_ptp')
-        .insert({
-          org_id: currentEmployee.org_id,
-          project_id: currentProject.id,
-          submitted_by_employee_id: currentEmployee.id,
-          date_created: new Date().toISOString().split('T')[0],
-          submitted_time: new Date().toISOString(),
-          job_location: jobLocation,
-          revision: 1,
-        })
-        .select('id')
-        .single();
-
-      if (ptpError) {
-        console.error('Error inserting into submitted_ptp:', ptpError);
-        Alert.alert('Submission Error', 'Failed to submit form. Please try again.');
-        setSubmitting(false);
-        return;
+      if (mode === 'EDIT' && editingId) {
+        // EDIT MODE: Update existing submission
+        await handleEditSubmit(editingId);
+      } else {
+        // CREATE or DUPLICATE MODE: Create new submission
+        await handleCreateSubmit();
       }
-
-      const submittedPtpId = submittedPtp.id;
-      console.log('Submitted PTP ID:', submittedPtpId);
-
-      // Step 2: Insert tasks into submitted_ptp_tasks
-      const taskInserts = tasks.map((task, index) => ({
-        submitted_ptp_id: submittedPtpId,
-        pre_task_card_id: task.id,
-        sort_order: index,
-      }));
-
-      const { error: tasksError } = await supabase
-        .from('submitted_ptp_tasks')
-        .insert(taskInserts);
-
-      if (tasksError) {
-        console.error('Error inserting tasks:', tasksError);
-        Alert.alert('Submission Error', 'Failed to save tasks. Please try again.');
-        setSubmitting(false);
-        return;
-      }
-
-      console.log('Tasks inserted:', taskInserts.length);
-
-      // Step 3: Insert workers into submitted_ptp_workers
-      const workerInserts = workers.map((worker) => ({
-        submitted_ptp_id: submittedPtpId,
-        employee_id: worker.employee_id,
-      }));
-
-      const { error: workersError } = await supabase
-        .from('submitted_ptp_workers')
-        .insert(workerInserts);
-
-      if (workersError) {
-        console.error('Error inserting workers:', workersError);
-        Alert.alert('Submission Error', 'Failed to save workers. Please try again.');
-        setSubmitting(false);
-        return;
-      }
-
-      console.log('Workers inserted:', workerInserts.length);
-
-      // Success!
-      Alert.alert(
-        'Success',
-        'Pre-Task Checklist submitted successfully!',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              // Navigate back to Dashboard
-              router.dismissAll();
-              router.replace('/(tabs)/(home)');
-            },
-          },
-        ]
-      );
     } catch (error) {
       console.error('Exception during submission:', error);
       Alert.alert('Error', 'An unexpected error occurred. Please try again.');
-    } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleCreateSubmit = async () => {
+    if (!currentEmployee || !currentProject) return;
+
+    // Step 1: Insert into submitted_ptp
+    const { data: submittedPtp, error: ptpError } = await supabase
+      .from('submitted_ptp')
+      .insert({
+        org_id: currentEmployee.org_id,
+        project_id: currentProject.id,
+        submitted_by_employee_id: currentEmployee.id,
+        date_created: new Date().toISOString().split('T')[0],
+        submitted_time: new Date().toISOString(),
+        job_location: jobLocation,
+        revision: 1,
+      })
+      .select('id')
+      .single();
+
+    if (ptpError) {
+      console.error('Error inserting into submitted_ptp:', ptpError);
+      Alert.alert('Submission Error', 'Failed to submit form. Please try again.');
+      setSubmitting(false);
+      return;
+    }
+
+    const submittedPtpId = submittedPtp.id;
+    console.log('Submitted PTP ID:', submittedPtpId);
+
+    // Step 2: Insert tasks into submitted_ptp_tasks
+    const taskInserts = tasks.map((task, index) => ({
+      submitted_ptp_id: submittedPtpId,
+      pre_task_card_id: task.id,
+      sort_order: index,
+    }));
+
+    const { error: tasksError } = await supabase
+      .from('submitted_ptp_tasks')
+      .insert(taskInserts);
+
+    if (tasksError) {
+      console.error('Error inserting tasks:', tasksError);
+      Alert.alert('Submission Error', 'Failed to save tasks. Please try again.');
+      setSubmitting(false);
+      return;
+    }
+
+    console.log('Tasks inserted:', taskInserts.length);
+
+    // Step 3: Insert workers into submitted_ptp_workers
+    const workerInserts = workers.map((worker) => ({
+      submitted_ptp_id: submittedPtpId,
+      employee_id: worker.employee_id,
+    }));
+
+    const { error: workersError } = await supabase
+      .from('submitted_ptp_workers')
+      .insert(workerInserts);
+
+    if (workersError) {
+      console.error('Error inserting workers:', workersError);
+      Alert.alert('Submission Error', 'Failed to save workers. Please try again.');
+      setSubmitting(false);
+      return;
+    }
+
+    console.log('Workers inserted:', workerInserts.length);
+
+    // Success! Update the previous PTP check
+    await checkForPreviousPtp();
+
+    setSubmitting(false);
+    
+    // Navigate back to Dashboard
+    Alert.alert(
+      'Success',
+      'Pre-Task Checklist submitted successfully!',
+      [
+        {
+          text: 'OK',
+          onPress: () => {
+            router.dismissAll();
+            router.replace('/(tabs)/(home)');
+          },
+        },
+      ]
+    );
+  };
+
+  const handleEditSubmit = async (submittedPtpId: string) => {
+    if (!currentEmployee) return;
+
+    // Step 1: Update submitted_ptp
+    const { error: updateError } = await supabase
+      .from('submitted_ptp')
+      .update({
+        updated_by_employee_id: currentEmployee.id,
+        revision: supabase.sql`revision + 1`,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', submittedPtpId);
+
+    if (updateError) {
+      console.error('Error updating submitted_ptp:', updateError);
+      Alert.alert('Update Error', 'Failed to update form. Please try again.');
+      setSubmitting(false);
+      return;
+    }
+
+    console.log('Updated PTP ID:', submittedPtpId);
+
+    // Step 2: Delete existing tasks
+    const { error: deleteTasksError } = await supabase
+      .from('submitted_ptp_tasks')
+      .delete()
+      .eq('submitted_ptp_id', submittedPtpId);
+
+    if (deleteTasksError) {
+      console.error('Error deleting tasks:', deleteTasksError);
+      Alert.alert('Update Error', 'Failed to update tasks. Please try again.');
+      setSubmitting(false);
+      return;
+    }
+
+    // Step 3: Insert new tasks
+    const taskInserts = tasks.map((task, index) => ({
+      submitted_ptp_id: submittedPtpId,
+      pre_task_card_id: task.id,
+      sort_order: index,
+    }));
+
+    const { error: tasksError } = await supabase
+      .from('submitted_ptp_tasks')
+      .insert(taskInserts);
+
+    if (tasksError) {
+      console.error('Error inserting tasks:', tasksError);
+      Alert.alert('Update Error', 'Failed to save tasks. Please try again.');
+      setSubmitting(false);
+      return;
+    }
+
+    console.log('Tasks updated:', taskInserts.length);
+
+    // Step 4: Delete existing workers
+    const { error: deleteWorkersError } = await supabase
+      .from('submitted_ptp_workers')
+      .delete()
+      .eq('submitted_ptp_id', submittedPtpId);
+
+    if (deleteWorkersError) {
+      console.error('Error deleting workers:', deleteWorkersError);
+      Alert.alert('Update Error', 'Failed to update workers. Please try again.');
+      setSubmitting(false);
+      return;
+    }
+
+    // Step 5: Insert new workers
+    const workerInserts = workers.map((worker) => ({
+      submitted_ptp_id: submittedPtpId,
+      employee_id: worker.employee_id,
+    }));
+
+    const { error: workersError } = await supabase
+      .from('submitted_ptp_workers')
+      .insert(workerInserts);
+
+    if (workersError) {
+      console.error('Error inserting workers:', workersError);
+      Alert.alert('Update Error', 'Failed to save workers. Please try again.');
+      setSubmitting(false);
+      return;
+    }
+
+    console.log('Workers updated:', workerInserts.length);
+
+    // Success!
+    setSubmitting(false);
+    
+    // Navigate back to Dashboard
+    Alert.alert(
+      'Success',
+      'Pre-Task Checklist updated successfully!',
+      [
+        {
+          text: 'OK',
+          onPress: () => {
+            router.dismissAll();
+            router.replace('/(tabs)/(home)');
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -171,7 +294,11 @@ export default function PreTaskSummaryScreen() {
             color={submitting ? colors.textSecondary : colors.text}
           />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Pre-Task Card – Summary</Text>
+        <Text style={styles.headerTitle}>
+          Pre-Task Card – Summary
+          {mode === 'EDIT' && ' (Edit)'}
+          {mode === 'DUPLICATE' && ' (Duplicate)'}
+        </Text>
         <View style={styles.placeholder} />
       </View>
 
@@ -272,10 +399,14 @@ export default function PreTaskSummaryScreen() {
           {submitting ? (
             <React.Fragment>
               <ActivityIndicator size="small" color={colors.card} />
-              <Text style={styles.submitButtonText}>SUBMITTING...</Text>
+              <Text style={styles.submitButtonText}>
+                {mode === 'EDIT' ? 'UPDATING...' : 'SUBMITTING...'}
+              </Text>
             </React.Fragment>
           ) : (
-            <Text style={styles.submitButtonText}>SUBMIT FORM</Text>
+            <Text style={styles.submitButtonText}>
+              {mode === 'EDIT' ? 'UPDATE FORM' : 'SUBMIT FORM'}
+            </Text>
           )}
         </TouchableOpacity>
       </View>

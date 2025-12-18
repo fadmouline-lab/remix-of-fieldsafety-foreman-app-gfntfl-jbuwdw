@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { supabase } from '@/lib/supabase';
@@ -25,10 +25,15 @@ interface PreTaskCard {
 
 export default function PreTaskSelectTasksScreen() {
   const router = useRouter();
-  const { currentProject } = useAuth();
+  const params = useLocalSearchParams();
+  const { currentProject, lastSubmittedPtpId } = useAuth();
+  
   const [tasks, setTasks] = useState<PreTaskCard[]>([]);
   const [selectedTasks, setSelectedTasks] = useState<PreTaskCard[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const mode = (params.mode as string) || 'CREATE';
+  const editingId = params.editingId as string | undefined;
 
   useEffect(() => {
     loadTasks();
@@ -59,6 +64,11 @@ export default function PreTaskSelectTasksScreen() {
       } else {
         console.log('Tasks loaded:', data?.length || 0);
         setTasks(data || []);
+        
+        // If in DUPLICATE or EDIT mode, preload selected tasks
+        if ((mode === 'DUPLICATE' || mode === 'EDIT') && data) {
+          await preloadSelectedTasks(data);
+        }
       }
     } catch (error) {
       console.error('Exception loading tasks:', error);
@@ -66,6 +76,41 @@ export default function PreTaskSelectTasksScreen() {
       setTasks([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const preloadSelectedTasks = async (availableTasks: PreTaskCard[]) => {
+    const sourceId = mode === 'EDIT' ? editingId : lastSubmittedPtpId;
+    
+    if (!sourceId) {
+      console.log('No source ID for preloading tasks');
+      return;
+    }
+
+    console.log(`Preloading tasks from ${mode} mode, source ID:`, sourceId);
+
+    try {
+      const { data, error } = await supabase
+        .from('submitted_ptp_tasks')
+        .select('pre_task_card_id')
+        .eq('submitted_ptp_id', sourceId)
+        .order('sort_order', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching previous tasks:', error);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        const preTaskCardIds = data.map((t) => t.pre_task_card_id);
+        const preselected = availableTasks.filter((task) =>
+          preTaskCardIds.includes(task.id)
+        );
+        console.log('Preselected tasks:', preselected.length);
+        setSelectedTasks(preselected);
+      }
+    } catch (error) {
+      console.error('Exception preloading tasks:', error);
     }
   };
 
@@ -82,7 +127,11 @@ export default function PreTaskSelectTasksScreen() {
     console.log('Selected tasks:', selectedTasks.length);
     router.push({
       pathname: '/pre-task-select-workers',
-      params: { tasks: JSON.stringify(selectedTasks) },
+      params: {
+        tasks: JSON.stringify(selectedTasks),
+        mode,
+        editingId: editingId || '',
+      },
     });
   };
 
@@ -151,7 +200,11 @@ export default function PreTaskSelectTasksScreen() {
             color={colors.text}
           />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Pre-Task Card – Tasks</Text>
+        <Text style={styles.headerTitle}>
+          Pre-Task Card – Tasks
+          {mode === 'EDIT' && ' (Edit)'}
+          {mode === 'DUPLICATE' && ' (Duplicate)'}
+        </Text>
         <View style={styles.placeholder} />
       </View>
 
