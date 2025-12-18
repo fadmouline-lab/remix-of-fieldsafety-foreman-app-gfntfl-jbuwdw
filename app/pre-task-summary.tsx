@@ -176,12 +176,31 @@ export default function PreTaskSummaryScreen() {
   const handleEditSubmit = async (submittedPtpId: string) => {
     if (!currentEmployee) return;
 
-    // Step 1: Update submitted_ptp
+    console.log('Starting edit submission for PTP ID:', submittedPtpId);
+
+    // Step 1: Fetch current revision number
+    const { data: currentPtp, error: fetchError } = await supabase
+      .from('submitted_ptp')
+      .select('revision')
+      .eq('id', submittedPtpId)
+      .single();
+
+    if (fetchError || !currentPtp) {
+      console.error('Error fetching current PTP:', fetchError);
+      Alert.alert('Update Error', 'Failed to fetch form data. Please try again.');
+      setSubmitting(false);
+      return;
+    }
+
+    const newRevision = (currentPtp.revision || 1) + 1;
+    console.log('Current revision:', currentPtp.revision, 'New revision:', newRevision);
+
+    // Step 2: Update submitted_ptp
     const { error: updateError } = await supabase
       .from('submitted_ptp')
       .update({
         updated_by_employee_id: currentEmployee.id,
-        revision: supabase.sql`revision + 1`,
+        revision: newRevision,
         updated_at: new Date().toISOString(),
       })
       .eq('id', submittedPtpId);
@@ -193,9 +212,9 @@ export default function PreTaskSummaryScreen() {
       return;
     }
 
-    console.log('Updated PTP ID:', submittedPtpId);
+    console.log('Updated PTP ID:', submittedPtpId, 'with revision:', newRevision);
 
-    // Step 2: Delete existing tasks
+    // Step 3: Delete existing tasks
     const { error: deleteTasksError } = await supabase
       .from('submitted_ptp_tasks')
       .delete()
@@ -208,7 +227,9 @@ export default function PreTaskSummaryScreen() {
       return;
     }
 
-    // Step 3: Insert new tasks
+    console.log('Deleted existing tasks for PTP ID:', submittedPtpId);
+
+    // Step 4: Insert new tasks
     const taskInserts = tasks.map((task, index) => ({
       submitted_ptp_id: submittedPtpId,
       pre_task_card_id: task.id,
@@ -228,7 +249,7 @@ export default function PreTaskSummaryScreen() {
 
     console.log('Tasks updated:', taskInserts.length);
 
-    // Step 4: Delete existing workers
+    // Step 5: Delete existing workers
     const { error: deleteWorkersError } = await supabase
       .from('submitted_ptp_workers')
       .delete()
@@ -241,7 +262,9 @@ export default function PreTaskSummaryScreen() {
       return;
     }
 
-    // Step 5: Insert new workers
+    console.log('Deleted existing workers for PTP ID:', submittedPtpId);
+
+    // Step 6: Insert new workers
     const workerInserts = workers.map((worker) => ({
       submitted_ptp_id: submittedPtpId,
       employee_id: worker.employee_id,
