@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,45 +7,246 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
+  ActivityIndicator,
+  TextInput,
+  Alert,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 
 interface Worker {
+  employee_id: string;
   name: string;
   hours: number;
   ptpSigned: boolean;
 }
 
-const initialWorkers: Worker[] = [
-  { name: 'Juan Perez', hours: 8.0, ptpSigned: true },
-  { name: 'Maria Lopez', hours: 8.0, ptpSigned: true },
-  { name: 'Samir Khan', hours: 8.0, ptpSigned: false },
-  { name: 'Alex Johnson', hours: 8.0, ptpSigned: true },
-];
-
-const availableWorkers = [
-  'Carlos Rodriguez',
-  'Emily Chen',
-  'Michael Brown',
-  'Sofia Martinez',
-  'David Kim',
-  'Jessica Taylor',
-  'Ahmed Hassan',
-  'Lisa Anderson',
-];
+interface AvailableEmployee {
+  id: string;
+  first_name: string;
+  last_name: string;
+  full_name: string;
+}
 
 export default function TimeCardsPage1Screen() {
   const router = useRouter();
-  const [workers, setWorkers] = useState<Worker[]>(initialWorkers);
+  const params = useLocalSearchParams();
+  const { currentEmployee, currentProject } = useAuth();
+  
+  const [workers, setWorkers] = useState<Worker[]>([]);
+  const [availableEmployees, setAvailableEmployees] = useState<AvailableEmployee[]>([]);
   const [showAddWorkers, setShowAddWorkers] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [todayPtpId, setTodayPtpId] = useState<string | null>(null);
+  const [noPtpMessage, setNoPtpMessage] = useState(false);
+  
+  // Edit mode state
+  const mode = (params.mode as string) || 'CREATE';
+  const editingId = params.editingId as string | undefined;
 
-  const handleHoursChange = (name: string, delta: number) => {
+  useEffect(() => {
+    if (currentEmployee && currentProject) {
+      if (mode === 'EDIT' && editingId) {
+        loadExistingTimeCard();
+      } else {
+        loadTodaysPTP();
+      }
+      loadAvailableEmployees();
+    }
+  }, [currentEmployee, currentProject, mode, editingId]);
+
+  const loadTodaysPTP = async () => {
+    if (!currentEmployee || !currentProject) return;
+
+    console.log('Loading today\'s PTP...');
+    setLoading(true);
+
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Find today's PTP
+      const { data: ptpData, error: ptpError } = await supabase
+        .from('submitted_ptp')
+        .select('id')
+        .eq('project_id', currentProject.id)
+        .eq('date_created', today)
+        .order('submitted_time', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (ptpError) {
+        if (ptpError.code === 'PGRST116') {
+          // No PTP found for today
+          console.log('No PTP found for today');
+          setNoPtpMessage(true);
+          setTodayPtpId(null);
+          setWorkers([]);
+        } else {
+          console.error('Error fetching PTP:', ptpError);
+          Alert.alert('Error', 'Failed to load PTP data. Please try again.');
+        }
+        setLoading(false);
+        return;
+      }
+
+      if (!ptpData) {
+        console.log('No PTP found for today');
+        setNoPtpMessage(true);
+        setTodayPtpId(null);
+        setWorkers([]);
+        setLoading(false);
+        return;
+      }
+
+      console.log('Found today\'s PTP:', ptpData.id);
+      setTodayPtpId(ptpData.id);
+      setNoPtpMessage(false);
+
+      // Load workers from PTP
+      const { data: ptpWorkers, error: workersError } = await supabase
+        .from('submitted_ptp_workers')
+        .select(`
+          employee_id,
+          employees:employee_id (
+            id,
+            first_name,
+            last_name
+          )
+        `)
+        .eq('submitted_ptp_id', ptpData.id);
+
+      if (workersError) {
+        console.error('Error fetching PTP workers:', workersError);
+        Alert.alert('Error', 'Failed to load workers. Please try again.');
+        setLoading(false);
+        return;
+      }
+
+      console.log('Loaded PTP workers:', ptpWorkers?.length || 0);
+
+      // Transform workers data
+      const transformedWorkers: Worker[] = (ptpWorkers || []).map((w: any) => ({
+        employee_id: w.employee_id,
+        name: `${w.employees.first_name} ${w.employees.last_name}`,
+        hours: 8.0,
+        ptpSigned: true,
+      }));
+
+      setWorkers(transformedWorkers);
+    } catch (error) {
+      console.error('Exception loading PTP:', error);
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadExistingTimeCard = async () => {
+    if (!currentEmployee || !currentProject || !editingId) return;
+
+    console.log('Loading existing time card:', editingId);
+    setLoading(true);
+
+    try {
+      // Load time card header
+      const { data: timeCardData, error: timeCardError } = await supabase
+        .from('submitted_time_cards')
+        .select('id, source_ptp_id')
+        .eq('id', editingId)
+        .single();
+
+      if (timeCardError) {
+        console.error('Error fetching time card:', timeCardError);
+        Alert.alert('Error', 'Failed to load time card. Please try again.');
+        setLoading(false);
+        return;
+      }
+
+      console.log('Loaded time card:', timeCardData);
+      setTodayPtpId(timeCardData.source_ptp_id);
+
+      // Load active workers
+      const { data: workersData, error: workersError } = await supabase
+        .from('submitted_time_card_workers')
+        .select(`
+          employee_id,
+          hours_worked,
+          ptp_signed,
+          employees:employee_id (
+            id,
+            first_name,
+            last_name
+          )
+        `)
+        .eq('submitted_time_card_id', editingId)
+        .eq('is_active', true);
+
+      if (workersError) {
+        console.error('Error fetching workers:', workersError);
+        Alert.alert('Error', 'Failed to load workers. Please try again.');
+        setLoading(false);
+        return;
+      }
+
+      console.log('Loaded workers:', workersData?.length || 0);
+
+      // Transform workers data
+      const transformedWorkers: Worker[] = (workersData || []).map((w: any) => ({
+        employee_id: w.employee_id,
+        name: `${w.employees.first_name} ${w.employees.last_name}`,
+        hours: parseFloat(w.hours_worked),
+        ptpSigned: w.ptp_signed,
+      }));
+
+      setWorkers(transformedWorkers);
+    } catch (error) {
+      console.error('Exception loading time card:', error);
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadAvailableEmployees = async () => {
+    if (!currentEmployee) return;
+
+    console.log('Loading available employees...');
+
+    try {
+      const { data, error } = await supabase
+        .from('employees')
+        .select('id, first_name, last_name')
+        .eq('org_id', currentEmployee.org_id)
+        .order('first_name', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching employees:', error);
+        return;
+      }
+
+      const employees: AvailableEmployee[] = (data || []).map((emp) => ({
+        id: emp.id,
+        first_name: emp.first_name,
+        last_name: emp.last_name,
+        full_name: `${emp.first_name} ${emp.last_name}`,
+      }));
+
+      setAvailableEmployees(employees);
+      console.log('Loaded available employees:', employees.length);
+    } catch (error) {
+      console.error('Exception loading employees:', error);
+    }
+  };
+
+  const handleHoursChange = (employee_id: string, delta: number) => {
     setWorkers((prevWorkers) =>
       prevWorkers.map((worker) => {
-        if (worker.name === name) {
-          const newHours = Math.max(0, Math.min(12, worker.hours + delta));
+        if (worker.employee_id === employee_id) {
+          const newHours = Math.max(0, Math.min(16, worker.hours + delta));
           return { ...worker, hours: Math.round(newHours * 2) / 2 };
         }
         return worker;
@@ -53,28 +254,79 @@ export default function TimeCardsPage1Screen() {
     );
   };
 
-  const addWorker = (workerName: string) => {
+  const addWorker = (employee: AvailableEmployee) => {
+    // Check if worker already exists
+    const exists = workers.some((w) => w.employee_id === employee.id);
+    if (exists) {
+      Alert.alert('Already Added', 'This worker is already in the list.');
+      return;
+    }
+
     const newWorker: Worker = {
-      name: workerName,
+      employee_id: employee.id,
+      name: employee.full_name,
       hours: 8.0,
       ptpSigned: false,
     };
     setWorkers([...workers, newWorker]);
     setShowAddWorkers(false);
+    setSearchQuery('');
+  };
+
+  const removeWorker = (employee_id: string) => {
+    setWorkers(workers.filter((w) => w.employee_id !== employee_id));
   };
 
   const handleNext = () => {
+    if (workers.length === 0) {
+      Alert.alert('No Workers', 'Please add at least one worker before continuing.');
+      return;
+    }
+
     console.log('Navigating to Time Cards Review with workers:', workers);
     router.push({
       pathname: '/time-cards-2',
-      params: { workers: JSON.stringify(workers) },
+      params: {
+        workers: JSON.stringify(workers),
+        todayPtpId: todayPtpId || '',
+        mode,
+        editingId: editingId || '',
+      },
     });
   };
 
-  const workerNames = workers.map((w) => w.name);
-  const availableToAdd = availableWorkers.filter(
-    (name) => !workerNames.includes(name)
-  );
+  const filteredEmployees = availableEmployees.filter((emp) => {
+    const query = searchQuery.toLowerCase();
+    const alreadyAdded = workers.some((w) => w.employee_id === emp.id);
+    return (
+      !alreadyAdded &&
+      (emp.first_name.toLowerCase().includes(query) ||
+        emp.last_name.toLowerCase().includes(query))
+    );
+  });
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <IconSymbol
+              ios_icon_name="chevron.left"
+              android_material_icon_name="arrow-back"
+              size={24}
+              color={colors.text}
+            />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Time Cards</Text>
+          <View style={styles.placeholder} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -87,7 +339,9 @@ export default function TimeCardsPage1Screen() {
             color={colors.text}
           />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Time Cards</Text>
+        <Text style={styles.headerTitle}>
+          Time Cards {mode === 'EDIT' && '(Edit)'}
+        </Text>
         <View style={styles.placeholder} />
       </View>
 
@@ -96,6 +350,20 @@ export default function TimeCardsPage1Screen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {noPtpMessage && workers.length === 0 && (
+          <View style={styles.warningCard}>
+            <IconSymbol
+              ios_icon_name="exclamationmark.triangle.fill"
+              android_material_icon_name="warning"
+              size={24}
+              color={colors.secondary}
+            />
+            <Text style={styles.warningText}>
+              Please complete PTP first. You can still add workers manually.
+            </Text>
+          </View>
+        )}
+
         <Text style={styles.description}>
           Review today&apos;s workers and set their hours.
         </Text>
@@ -129,7 +397,7 @@ export default function TimeCardsPage1Screen() {
             <View style={styles.hoursControl}>
               <TouchableOpacity
                 style={styles.hoursButton}
-                onPress={() => handleHoursChange(worker.name, -0.5)}
+                onPress={() => handleHoursChange(worker.employee_id, -0.5)}
                 activeOpacity={0.7}
               >
                 <IconSymbol
@@ -144,7 +412,7 @@ export default function TimeCardsPage1Screen() {
 
               <TouchableOpacity
                 style={styles.hoursButton}
-                onPress={() => handleHoursChange(worker.name, 0.5)}
+                onPress={() => handleHoursChange(worker.employee_id, 0.5)}
                 activeOpacity={0.7}
               >
                 <IconSymbol
@@ -155,10 +423,25 @@ export default function TimeCardsPage1Screen() {
                 />
               </TouchableOpacity>
             </View>
+
+            {!worker.ptpSigned && (
+              <TouchableOpacity
+                style={styles.removeButton}
+                onPress={() => removeWorker(worker.employee_id)}
+                activeOpacity={0.7}
+              >
+                <IconSymbol
+                  ios_icon_name="trash.fill"
+                  android_material_icon_name="delete"
+                  size={20}
+                  color={colors.secondary}
+                />
+              </TouchableOpacity>
+            )}
           </View>
         ))}
 
-        {availableToAdd.length > 0 && (
+        {availableEmployees.length > 0 && (
           <View style={styles.addWorkersSection}>
             <TouchableOpacity
               style={styles.addWorkersButton}
@@ -183,22 +466,39 @@ export default function TimeCardsPage1Screen() {
                 <Text style={styles.availableWorkersTitle}>
                   Available Workers
                 </Text>
-                {availableToAdd.map((workerName, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={styles.availableWorkerBox}
-                    onPress={() => addWorker(workerName)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.availableWorkerName}>{workerName}</Text>
-                    <IconSymbol
-                      ios_icon_name="plus.circle"
-                      android_material_icon_name="add-circle-outline"
-                      size={24}
-                      color={colors.primary}
-                    />
-                  </TouchableOpacity>
-                ))}
+                
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Search workers..."
+                  placeholderTextColor={colors.textSecondary}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                />
+
+                <ScrollView style={styles.workersList} nestedScrollEnabled>
+                  {filteredEmployees.length === 0 ? (
+                    <Text style={styles.noResultsText}>
+                      {searchQuery ? 'No workers found' : 'All workers have been added'}
+                    </Text>
+                  ) : (
+                    filteredEmployees.map((employee, index) => (
+                      <TouchableOpacity
+                        key={index}
+                        style={styles.availableWorkerBox}
+                        onPress={() => addWorker(employee)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.availableWorkerName}>{employee.full_name}</Text>
+                        <IconSymbol
+                          ios_icon_name="plus.circle"
+                          android_material_icon_name="add-circle-outline"
+                          size={24}
+                          color={colors.primary}
+                        />
+                      </TouchableOpacity>
+                    ))
+                  )}
+                </ScrollView>
               </View>
             )}
           </View>
@@ -242,12 +542,39 @@ const styles = StyleSheet.create({
   placeholder: {
     width: 40,
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: colors.textSecondary,
+  },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     paddingHorizontal: 20,
     paddingBottom: 120,
+  },
+  warningCard: {
+    backgroundColor: colors.highlight,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderColor: colors.secondary,
+  },
+  warningText: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.text,
+    lineHeight: 20,
   },
   description: {
     fontSize: 16,
@@ -305,6 +632,10 @@ const styles = StyleSheet.create({
     minWidth: 40,
     textAlign: 'center',
   },
+  removeButton: {
+    padding: 8,
+    marginLeft: 8,
+  },
   addWorkersSection: {
     marginTop: 20,
   },
@@ -333,6 +664,25 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
     marginBottom: 12,
+  },
+  searchInput: {
+    backgroundColor: colors.background,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: colors.text,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  workersList: {
+    maxHeight: 300,
+  },
+  noResultsText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    paddingVertical: 20,
   },
   availableWorkerBox: {
     flexDirection: 'row',
