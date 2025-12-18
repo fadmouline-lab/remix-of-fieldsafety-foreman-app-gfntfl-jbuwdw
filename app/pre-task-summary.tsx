@@ -155,22 +155,12 @@ export default function PreTaskSummaryScreen() {
     // Success! Update the previous PTP check
     await checkForPreviousPtp();
 
+    console.log('Form submitted successfully! Navigating to dashboard...');
     setSubmitting(false);
     
-    // Navigate back to Dashboard
-    Alert.alert(
-      'Success',
-      'Pre-Task Checklist submitted successfully!',
-      [
-        {
-          text: 'OK',
-          onPress: () => {
-            router.dismissAll();
-            router.replace('/(tabs)/(home)');
-          },
-        },
-      ]
-    );
+    // Navigate back to Dashboard immediately
+    router.dismissAll();
+    router.replace('/(tabs)/(home)');
   };
 
   const handleEditSubmit = async (submittedPtpId: string) => {
@@ -284,22 +274,12 @@ export default function PreTaskSummaryScreen() {
     console.log('Workers updated:', workerInserts.length);
 
     // Success!
+    console.log('Form updated successfully! Navigating to dashboard...');
     setSubmitting(false);
     
-    // Navigate back to Dashboard
-    Alert.alert(
-      'Success',
-      'Pre-Task Checklist updated successfully!',
-      [
-        {
-          text: 'OK',
-          onPress: () => {
-            router.dismissAll();
-            router.replace('/(tabs)/(home)');
-          },
-        },
-      ]
-    );
+    // Navigate back to Dashboard immediately
+    router.dismissAll();
+    router.replace('/(tabs)/(home)');
   };
 
   return (
