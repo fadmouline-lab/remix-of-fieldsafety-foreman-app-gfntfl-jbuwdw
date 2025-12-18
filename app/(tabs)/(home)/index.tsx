@@ -24,16 +24,13 @@ interface FormCard {
   titleKey: string;
 }
 
-interface CompletedPtpForm {
+interface CompletedForm {
   id: string;
+  type: 'ptp' | 'timecard';
   submitted_time: string;
+  updated_at?: string;
   revision: number;
-}
-
-interface CompletedTimeCardForm {
-  id: string;
-  submitted_time: string;
-  revision: number;
+  display_time: string; // For sorting
 }
 
 const beforeJobStartForms: FormCard[] = [
@@ -64,8 +61,7 @@ export default function HomeScreen() {
   const [activeTab, setActiveTab] = useState<TabType>('TODO');
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [preTaskModalVisible, setPreTaskModalVisible] = useState(false);
-  const [completedPtpForms, setCompletedPtpForms] = useState<CompletedPtpForm[]>([]);
-  const [completedTimeCardForms, setCompletedTimeCardForms] = useState<CompletedTimeCardForm[]>([]);
+  const [completedForms, setCompletedForms] = useState<CompletedForm[]>([]);
   const [loadingCompletedForms, setLoadingCompletedForms] = useState(false);
 
   // Redirect to select project if no project selected
@@ -106,38 +102,70 @@ export default function HomeScreen() {
       // Load PTP forms
       const { data: ptpData, error: ptpError } = await supabase
         .from('submitted_ptp')
-        .select('id, submitted_time, revision')
+        .select('id, submitted_time, updated_at, revision')
         .eq('org_id', currentEmployee.org_id)
-        .eq('project_id', currentProject.id)
-        .order('submitted_time', { ascending: false });
+        .eq('project_id', currentProject.id);
 
       if (ptpError) {
         console.error('Error fetching completed PTP forms:', ptpError);
-        setCompletedPtpForms([]);
-      } else {
-        console.log('Completed PTP forms loaded:', ptpData?.length || 0);
-        setCompletedPtpForms(ptpData || []);
       }
 
       // Load Time Card forms
       const { data: timeCardData, error: timeCardError } = await supabase
         .from('submitted_time_cards')
-        .select('id, submitted_time, revision')
+        .select('id, submitted_time, updated_at, revision')
         .eq('org_id', currentEmployee.org_id)
-        .eq('project_id', currentProject.id)
-        .order('submitted_time', { ascending: false });
+        .eq('project_id', currentProject.id);
 
       if (timeCardError) {
         console.error('Error fetching completed Time Card forms:', timeCardError);
-        setCompletedTimeCardForms([]);
-      } else {
-        console.log('Completed Time Card forms loaded:', timeCardData?.length || 0);
-        setCompletedTimeCardForms(timeCardData || []);
       }
+
+      // Combine and transform forms
+      const allForms: CompletedForm[] = [];
+
+      // Add PTP forms
+      if (ptpData) {
+        ptpData.forEach((form) => {
+          const displayTime = form.updated_at || form.submitted_time;
+          allForms.push({
+            id: form.id,
+            type: 'ptp',
+            submitted_time: form.submitted_time,
+            updated_at: form.updated_at,
+            revision: form.revision,
+            display_time: displayTime,
+          });
+        });
+      }
+
+      // Add Time Card forms
+      if (timeCardData) {
+        timeCardData.forEach((form) => {
+          const displayTime = form.updated_at || form.submitted_time;
+          allForms.push({
+            id: form.id,
+            type: 'timecard',
+            submitted_time: form.submitted_time,
+            updated_at: form.updated_at,
+            revision: form.revision,
+            display_time: displayTime,
+          });
+        });
+      }
+
+      // Sort by most recent activity (updated_at if exists, otherwise submitted_time)
+      allForms.sort((a, b) => {
+        const aTime = new Date(a.display_time).getTime();
+        const bTime = new Date(b.display_time).getTime();
+        return bTime - aTime; // Descending order (most recent first)
+      });
+
+      console.log('Completed forms loaded and sorted:', allForms.length);
+      setCompletedForms(allForms);
     } catch (error) {
       console.error('Exception loading completed forms:', error);
-      setCompletedPtpForms([]);
-      setCompletedTimeCardForms([]);
+      setCompletedForms([]);
     } finally {
       setLoadingCompletedForms(false);
     }
@@ -358,7 +386,7 @@ export default function HomeScreen() {
                 <ActivityIndicator size="small" color={colors.primary} />
                 <Text style={styles.loadingText}>Loading completed forms...</Text>
               </View>
-            ) : (completedPtpForms.length === 0 && completedTimeCardForms.length === 0) ? (
+            ) : completedForms.length === 0 ? (
               <View style={styles.emptyCompletedContainer}>
                 <Text style={styles.emptyCompletedText}>
                   No completed forms yet.
@@ -366,12 +394,12 @@ export default function HomeScreen() {
               </View>
             ) : (
               <React.Fragment>
-                {completedPtpForms.map((form, index) => (
-                  <View key={`ptp-${index}`} style={styles.completedCard}>
+                {completedForms.map((form, index) => (
+                  <View key={`${form.type}-${index}`} style={styles.completedCard}>
                     <View style={styles.completedCardContent}>
                       <View style={styles.completedTitleRow}>
                         <Text style={styles.completedFormTitle}>
-                          Daily Pre-Task Checklist
+                          {form.type === 'ptp' ? 'Daily Pre-Task Checklist' : 'Time Cards'}
                         </Text>
                         {form.revision > 1 && (
                           <View style={styles.editedBadge}>
@@ -380,38 +408,18 @@ export default function HomeScreen() {
                         )}
                       </View>
                       <Text style={styles.submittedDate}>
-                        {t('home.submittedOn')} {formatSubmittedDate(form.submitted_time)}
+                        {form.updated_at
+                          ? `Updated on: ${formatSubmittedDate(form.updated_at)}`
+                          : `${t('home.submittedOn')} ${formatSubmittedDate(form.submitted_time)}`}
                       </Text>
                     </View>
                     <TouchableOpacity
                       style={styles.editButton}
-                      onPress={() => handleEditPtpPress(form.id)}
-                    >
-                      <Text style={styles.editButtonText}>{t('home.edit')}</Text>
-                    </TouchableOpacity>
-                  </View>
-                ))}
-                
-                {completedTimeCardForms.map((form, index) => (
-                  <View key={`timecard-${index}`} style={styles.completedCard}>
-                    <View style={styles.completedCardContent}>
-                      <View style={styles.completedTitleRow}>
-                        <Text style={styles.completedFormTitle}>
-                          Time Cards
-                        </Text>
-                        {form.revision > 1 && (
-                          <View style={styles.editedBadge}>
-                            <Text style={styles.editedBadgeText}>Edited</Text>
-                          </View>
-                        )}
-                      </View>
-                      <Text style={styles.submittedDate}>
-                        {t('home.submittedOn')} {formatSubmittedDate(form.submitted_time)}
-                      </Text>
-                    </View>
-                    <TouchableOpacity
-                      style={styles.editButton}
-                      onPress={() => handleEditTimeCardPress(form.id)}
+                      onPress={() =>
+                        form.type === 'ptp'
+                          ? handleEditPtpPress(form.id)
+                          : handleEditTimeCardPress(form.id)
+                      }
                     >
                       <Text style={styles.editButtonText}>{t('home.edit')}</Text>
                     </TouchableOpacity>

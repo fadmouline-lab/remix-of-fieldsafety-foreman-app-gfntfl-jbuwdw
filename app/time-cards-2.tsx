@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -28,6 +28,7 @@ export default function TimeCardsPage2Screen() {
   const params = useLocalSearchParams();
   const { currentEmployee, currentProject } = useAuth();
   const [submitting, setSubmitting] = useState(false);
+  const [originalWorkers, setOriginalWorkers] = useState<Worker[]>([]);
 
   const workers: Worker[] = params.workers
     ? JSON.parse(params.workers as string)
@@ -35,6 +36,53 @@ export default function TimeCardsPage2Screen() {
   const todayPtpId = (params.todayPtpId as string) || null;
   const mode = (params.mode as string) || 'CREATE';
   const editingId = params.editingId as string | undefined;
+
+  // Load original workers when in EDIT mode
+  useEffect(() => {
+    if (mode === 'EDIT' && editingId) {
+      loadOriginalWorkers();
+    }
+  }, [mode, editingId]);
+
+  const loadOriginalWorkers = async () => {
+    if (!editingId) return;
+
+    console.log('Loading original workers for comparison...');
+
+    try {
+      const { data: workersData, error } = await supabase
+        .from('submitted_time_card_workers')
+        .select(`
+          employee_id,
+          hours_worked,
+          ptp_signed,
+          employees:employee_id (
+            id,
+            first_name,
+            last_name
+          )
+        `)
+        .eq('submitted_time_card_id', editingId)
+        .eq('is_active', true);
+
+      if (error) {
+        console.error('Error fetching original workers:', error);
+        return;
+      }
+
+      const transformedWorkers: Worker[] = (workersData || []).map((w: any) => ({
+        employee_id: w.employee_id,
+        name: `${w.employees.first_name} ${w.employees.last_name}`,
+        hours: parseFloat(w.hours_worked),
+        ptpSigned: w.ptp_signed,
+      }));
+
+      setOriginalWorkers(transformedWorkers);
+      console.log('Original workers loaded:', transformedWorkers.length);
+    } catch (error) {
+      console.error('Exception loading original workers:', error);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!currentEmployee || !currentProject) {
@@ -120,8 +168,15 @@ export default function TimeCardsPage2Screen() {
     setSubmitting(false);
     
     // Navigate back to Dashboard immediately
-    router.dismissAll();
-    router.replace('/(tabs)/(home)');
+    Alert.alert('Success', 'Time card submitted successfully!', [
+      {
+        text: 'OK',
+        onPress: () => {
+          router.dismissAll();
+          router.replace('/(tabs)/(home)');
+        },
+      },
+    ]);
   };
 
   const handleEditSubmit = async (timeCardId: string) => {
@@ -152,7 +207,6 @@ export default function TimeCardsPage2Screen() {
       .update({
         updated_by_employee_id: currentEmployee.id,
         revision: newRevision,
-        updated_at: new Date().toISOString(),
       })
       .eq('id', timeCardId);
 
@@ -165,50 +219,99 @@ export default function TimeCardsPage2Screen() {
 
     console.log('Updated Time Card ID:', timeCardId, 'with revision:', newRevision);
 
-    // Step 3: Soft-deactivate existing workers
-    const { error: deactivateError } = await supabase
-      .from('submitted_time_card_workers')
-      .update({ is_active: false })
-      .eq('submitted_time_card_id', timeCardId);
+    // Step 3: Identify removed workers (workers in original but NOT in current selection)
+    const removedWorkerIds = originalWorkers
+      .filter(
+        (originalWorker) =>
+          !workers.some((worker) => worker.employee_id === originalWorker.employee_id)
+      )
+      .map((worker) => worker.employee_id);
 
-    if (deactivateError) {
-      console.error('Error deactivating workers:', deactivateError);
-      Alert.alert('Update Error', 'Failed to update workers. Please try again.');
-      setSubmitting(false);
-      return;
+    console.log('Removed workers:', removedWorkerIds);
+
+    // Step 4: Deactivate ONLY removed workers
+    if (removedWorkerIds.length > 0) {
+      const { error: deactivateError } = await supabase
+        .from('submitted_time_card_workers')
+        .update({ is_active: false })
+        .eq('submitted_time_card_id', timeCardId)
+        .in('employee_id', removedWorkerIds);
+
+      if (deactivateError) {
+        console.error('Error deactivating workers:', deactivateError);
+        Alert.alert('Update Error', 'Failed to update workers. Please try again.');
+        setSubmitting(false);
+        return;
+      }
+
+      console.log('Deactivated removed workers:', removedWorkerIds.length);
     }
 
-    console.log('Deactivated existing workers for Time Card ID:', timeCardId);
+    // Step 5: Update existing workers and insert new workers
+    for (const worker of workers) {
+      // Check if worker existed in original list
+      const existingWorker = originalWorkers.find(
+        (originalWorker) => originalWorker.employee_id === worker.employee_id
+      );
 
-    // Step 4: Insert new active workers
-    const workerInserts = workers.map((worker) => ({
-      submitted_time_card_id: timeCardId,
-      employee_id: worker.employee_id,
-      hours_worked: worker.hours,
-      ptp_signed: worker.ptpSigned,
-      is_active: true,
-    }));
+      if (existingWorker) {
+        // Update existing worker's hours
+        console.log(
+          `Updating worker ${worker.employee_id} hours from ${existingWorker.hours} to ${worker.hours}`
+        );
 
-    const { error: workersError } = await supabase
-      .from('submitted_time_card_workers')
-      .insert(workerInserts);
+        const { error: updateWorkerError } = await supabase
+          .from('submitted_time_card_workers')
+          .update({ hours_worked: worker.hours })
+          .eq('submitted_time_card_id', timeCardId)
+          .eq('employee_id', worker.employee_id)
+          .eq('is_active', true);
 
-    if (workersError) {
-      console.error('Error inserting workers:', workersError);
-      Alert.alert('Update Error', 'Failed to save workers. Please try again.');
-      setSubmitting(false);
-      return;
+        if (updateWorkerError) {
+          console.error('Error updating worker hours:', updateWorkerError);
+          Alert.alert('Update Error', 'Failed to update worker hours. Please try again.');
+          setSubmitting(false);
+          return;
+        }
+      } else {
+        // Insert new worker
+        console.log(`Inserting new worker ${worker.employee_id}`);
+
+        const { error: insertWorkerError } = await supabase
+          .from('submitted_time_card_workers')
+          .insert({
+            submitted_time_card_id: timeCardId,
+            employee_id: worker.employee_id,
+            hours_worked: worker.hours,
+            ptp_signed: worker.ptpSigned,
+            is_active: true,
+          });
+
+        if (insertWorkerError) {
+          console.error('Error inserting worker:', insertWorkerError);
+          Alert.alert('Update Error', 'Failed to add new worker. Please try again.');
+          setSubmitting(false);
+          return;
+        }
+      }
     }
 
-    console.log('Workers updated:', workerInserts.length);
+    console.log('Workers updated successfully');
 
     // Success!
     console.log('Time card updated successfully! Navigating to dashboard...');
     setSubmitting(false);
     
     // Navigate back to Dashboard immediately
-    router.dismissAll();
-    router.replace('/(tabs)/(home)');
+    Alert.alert('Success', 'Time card updated successfully!', [
+      {
+        text: 'OK',
+        onPress: () => {
+          router.dismissAll();
+          router.replace('/(tabs)/(home)');
+        },
+      },
+    ]);
   };
 
   const totalHours = workers.reduce((sum, worker) => sum + worker.hours, 0);
