@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,45 +7,138 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 
-const availableTasks = [
-  'Demolition',
-  'Scaffolding Setup',
-  'Electrical Work',
-  'Plumbing',
-  'Concrete Pouring',
-  'Framing',
-  'Drywall Installation',
-  'Painting',
-  'Roofing',
-  'HVAC Installation',
-  'Excavation',
-  'Welding',
-];
+interface PreTaskCard {
+  id: string;
+  task_name: string;
+  hazards: string[];
+  mitigation: string[];
+}
 
 export default function PreTaskSelectTasksScreen() {
   const router = useRouter();
-  const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
+  const { currentProject } = useAuth();
+  const [tasks, setTasks] = useState<PreTaskCard[]>([]);
+  const [selectedTasks, setSelectedTasks] = useState<PreTaskCard[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const toggleTask = (task: string) => {
-    if (selectedTasks.includes(task)) {
-      setSelectedTasks(selectedTasks.filter((t) => t !== task));
+  useEffect(() => {
+    loadTasks();
+  }, [currentProject]);
+
+  const loadTasks = async () => {
+    if (!currentProject) {
+      console.log('No current project selected');
+      Alert.alert('Error', 'No project selected. Please select a project first.');
+      setLoading(false);
+      return;
+    }
+
+    console.log('Loading tasks for project:', currentProject.id);
+    setLoading(true);
+
+    try {
+      const { data, error } = await supabase
+        .from('pre_task_cards')
+        .select('id, task_name, hazards, mitigation')
+        .eq('project_id', currentProject.id)
+        .eq('status', 'active');
+
+      if (error) {
+        console.error('Error fetching tasks:', error);
+        Alert.alert('Error', 'Failed to load tasks. Please try again.');
+        setTasks([]);
+      } else {
+        console.log('Tasks loaded:', data?.length || 0);
+        setTasks(data || []);
+      }
+    } catch (error) {
+      console.error('Exception loading tasks:', error);
+      Alert.alert('Error', 'An unexpected error occurred.');
+      setTasks([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleTask = (task: PreTaskCard) => {
+    const isSelected = selectedTasks.some((t) => t.id === task.id);
+    if (isSelected) {
+      setSelectedTasks(selectedTasks.filter((t) => t.id !== task.id));
     } else {
       setSelectedTasks([...selectedTasks, task]);
     }
   };
 
   const handleNext = () => {
-    console.log('Selected tasks:', selectedTasks);
+    console.log('Selected tasks:', selectedTasks.length);
     router.push({
       pathname: '/pre-task-select-workers',
       params: { tasks: JSON.stringify(selectedTasks) },
     });
   };
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <IconSymbol
+              ios_icon_name="chevron.left"
+              android_material_icon_name="arrow-back"
+              size={24}
+              color={colors.text}
+            />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Pre-Task Card – Tasks</Text>
+          <View style={styles.placeholder} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>Loading tasks...</Text>
+        </View>
+      </View>
+    );
+  }
+
+  if (tasks.length === 0) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <IconSymbol
+              ios_icon_name="chevron.left"
+              android_material_icon_name="arrow-back"
+              size={24}
+              color={colors.text}
+            />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Pre-Task Card – Tasks</Text>
+          <View style={styles.placeholder} />
+        </View>
+        <View style={styles.emptyContainer}>
+          <IconSymbol
+            ios_icon_name="exclamationmark.triangle"
+            android_material_icon_name="warning"
+            size={48}
+            color={colors.textSecondary}
+          />
+          <Text style={styles.emptyText}>No tasks available for this project.</Text>
+          <Text style={styles.emptySubtext}>
+            Please contact your manager to add tasks.
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -70,8 +163,8 @@ export default function PreTaskSelectTasksScreen() {
         <Text style={styles.instruction}>Select today&apos;s tasks.</Text>
 
         <View style={styles.taskGrid}>
-          {availableTasks.map((task, index) => {
-            const isSelected = selectedTasks.includes(task);
+          {tasks.map((task, index) => {
+            const isSelected = selectedTasks.some((t) => t.id === task.id);
             return (
               <TouchableOpacity
                 key={index}
@@ -87,8 +180,9 @@ export default function PreTaskSelectTasksScreen() {
                     styles.taskText,
                     isSelected && styles.taskTextSelected,
                   ]}
+                  numberOfLines={3}
                 >
-                  {task}
+                  {task.task_name}
                 </Text>
                 {isSelected && (
                   <View style={styles.checkIcon}>
@@ -122,7 +216,7 @@ export default function PreTaskSelectTasksScreen() {
               selectedTasks.length === 0 && styles.nextButtonTextDisabled,
             ]}
           >
-            NEXT
+            NEXT ({selectedTasks.length} selected)
           </Text>
         </TouchableOpacity>
       </View>
@@ -154,6 +248,34 @@ const styles = StyleSheet.create({
   placeholder: {
     width: 40,
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: colors.textSecondary,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+    gap: 12,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+    textAlign: 'center',
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
   scrollView: {
     flex: 1,
   },
@@ -177,7 +299,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderRadius: 12,
     padding: 16,
-    minHeight: 80,
+    minHeight: 100,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,

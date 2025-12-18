@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,101 +7,168 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 
-const summaryData = {
-  dateCreated: new Date().toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  }),
-  supervisor: 'John Smith',
-  jobLocation: 'UIC Project Site - Building A',
-  nearestHospital: 'Rush University Medical Center',
-  hospitalAddress: '1653 W Congress Pkwy, Chicago, IL 60612',
-  hospitalNumber: '(312) 942-5000',
-  weather: 'Partly Cloudy, 45°F',
-};
+interface PreTaskCard {
+  id: string;
+  task_name: string;
+  hazards: string[];
+  mitigation: string[];
+}
 
-const taskRisksData: { [key: string]: { risks: string; mitigations: string } } = {
-  'Demolition': {
-    risks: 'Falling debris, dust exposure',
-    mitigations: 'Hard hats required, dust masks, safety barriers',
-  },
-  'Scaffolding Setup': {
-    risks: 'Falls from height, structural collapse',
-    mitigations: 'Fall protection harnesses, inspect scaffolding, trained personnel only',
-  },
-  'Electrical Work': {
-    risks: 'Electric shock, arc flash',
-    mitigations: 'Lockout/tagout procedures, insulated tools, qualified electricians',
-  },
-  'Plumbing': {
-    risks: 'Water damage, slip hazards',
-    mitigations: 'Proper drainage, non-slip footwear, water shutoff procedures',
-  },
-  'Concrete Pouring': {
-    risks: 'Chemical burns, heavy lifting',
-    mitigations: 'Protective gloves, proper lifting techniques, team coordination',
-  },
-  'Framing': {
-    risks: 'Cuts, nail gun injuries',
-    mitigations: 'Safety glasses, proper tool handling, clear work zones',
-  },
-  'Drywall Installation': {
-    risks: 'Dust inhalation, repetitive strain',
-    mitigations: 'Respirators, ergonomic tools, regular breaks',
-  },
-  'Painting': {
-    risks: 'Fume inhalation, falls from ladders',
-    mitigations: 'Ventilation, respirators, stable ladder setup',
-  },
-  'Roofing': {
-    risks: 'Falls from height, heat exposure',
-    mitigations: 'Fall protection, hydration, sun protection',
-  },
-  'HVAC Installation': {
-    risks: 'Heavy equipment, refrigerant exposure',
-    mitigations: 'Proper lifting, ventilation, certified technicians',
-  },
-  'Excavation': {
-    risks: 'Cave-ins, underground utilities',
-    mitigations: 'Shoring systems, utility location, competent person on site',
-  },
-  'Welding': {
-    risks: 'Burns, fume inhalation, fire hazards',
-    mitigations: 'Welding helmets, ventilation, fire watch, fire extinguishers',
-  },
-};
+interface SelectedWorker {
+  employee_id: string;
+  full_name: string;
+}
 
 export default function PreTaskSummaryScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { currentEmployee, currentProject } = useAuth();
+  const [submitting, setSubmitting] = useState(false);
 
-  const tasks = params.tasks ? JSON.parse(params.tasks as string) : [];
-  const workers = params.workers ? JSON.parse(params.workers as string) : [];
+  const tasks: PreTaskCard[] = params.tasks ? JSON.parse(params.tasks as string) : [];
+  const workers: SelectedWorker[] = params.workers ? JSON.parse(params.workers as string) : [];
 
-  const handleSubmit = () => {
-    console.log('Submitting pre-task form...');
-    console.log('Tasks:', tasks);
-    console.log('Workers:', workers);
-    router.back();
-    router.back();
-    router.back();
+  const dateCreated = new Date().toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+
+  const userName = currentEmployee
+    ? `${currentEmployee.first_name} ${currentEmployee.last_name}`
+    : 'Unknown User';
+
+  const jobLocation = currentProject?.location || 'Unknown Location';
+
+  const handleSubmit = async () => {
+    if (!currentEmployee || !currentProject) {
+      Alert.alert('Error', 'Missing employee or project data. Please try again.');
+      return;
+    }
+
+    if (tasks.length === 0) {
+      Alert.alert('Error', 'No tasks selected. Please go back and select tasks.');
+      return;
+    }
+
+    if (workers.length === 0) {
+      Alert.alert('Error', 'No workers selected. Please go back and select workers.');
+      return;
+    }
+
+    console.log('Submitting PTP form...');
+    setSubmitting(true);
+
+    try {
+      // Step 1: Insert into submitted_ptp
+      const { data: submittedPtp, error: ptpError } = await supabase
+        .from('submitted_ptp')
+        .insert({
+          org_id: currentEmployee.org_id,
+          project_id: currentProject.id,
+          submitted_by_employee_id: currentEmployee.id,
+          date_created: new Date().toISOString().split('T')[0],
+          submitted_time: new Date().toISOString(),
+          job_location: jobLocation,
+          revision: 1,
+        })
+        .select('id')
+        .single();
+
+      if (ptpError) {
+        console.error('Error inserting into submitted_ptp:', ptpError);
+        Alert.alert('Submission Error', 'Failed to submit form. Please try again.');
+        setSubmitting(false);
+        return;
+      }
+
+      const submittedPtpId = submittedPtp.id;
+      console.log('Submitted PTP ID:', submittedPtpId);
+
+      // Step 2: Insert tasks into submitted_ptp_tasks
+      const taskInserts = tasks.map((task, index) => ({
+        submitted_ptp_id: submittedPtpId,
+        pre_task_card_id: task.id,
+        sort_order: index,
+      }));
+
+      const { error: tasksError } = await supabase
+        .from('submitted_ptp_tasks')
+        .insert(taskInserts);
+
+      if (tasksError) {
+        console.error('Error inserting tasks:', tasksError);
+        Alert.alert('Submission Error', 'Failed to save tasks. Please try again.');
+        setSubmitting(false);
+        return;
+      }
+
+      console.log('Tasks inserted:', taskInserts.length);
+
+      // Step 3: Insert workers into submitted_ptp_workers
+      const workerInserts = workers.map((worker) => ({
+        submitted_ptp_id: submittedPtpId,
+        employee_id: worker.employee_id,
+      }));
+
+      const { error: workersError } = await supabase
+        .from('submitted_ptp_workers')
+        .insert(workerInserts);
+
+      if (workersError) {
+        console.error('Error inserting workers:', workersError);
+        Alert.alert('Submission Error', 'Failed to save workers. Please try again.');
+        setSubmitting(false);
+        return;
+      }
+
+      console.log('Workers inserted:', workerInserts.length);
+
+      // Success!
+      Alert.alert(
+        'Success',
+        'Pre-Task Checklist submitted successfully!',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              // Navigate back to Dashboard
+              router.dismissAll();
+              router.replace('/(tabs)/(home)');
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('Exception during submission:', error);
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+          disabled={submitting}
+        >
           <IconSymbol
             ios_icon_name="chevron.left"
             android_material_icon_name="arrow-back"
             size={24}
-            color={colors.text}
+            color={submitting ? colors.textSecondary : colors.text}
           />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Pre-Task Card – Summary</Text>
@@ -116,82 +183,100 @@ export default function PreTaskSummaryScreen() {
         <View style={styles.summaryCard}>
           <View style={styles.row}>
             <Text style={styles.label}>Date Created</Text>
-            <Text style={styles.value}>{summaryData.dateCreated}</Text>
+            <Text style={styles.value}>{dateCreated}</Text>
           </View>
 
           <View style={styles.row}>
-            <Text style={styles.label}>Supervisor</Text>
-            <Text style={styles.value}>{summaryData.supervisor}</Text>
+            <Text style={styles.label}>User</Text>
+            <Text style={styles.value}>{userName}</Text>
           </View>
 
           <View style={styles.row}>
             <Text style={styles.label}>Job Location</Text>
-            <Text style={styles.value}>{summaryData.jobLocation}</Text>
+            <Text style={styles.value}>{jobLocation}</Text>
           </View>
 
           <View style={styles.row}>
             <Text style={styles.label}>Nearest Hospital</Text>
-            <Text style={styles.value}>{summaryData.nearestHospital}</Text>
+            <Text style={styles.value}>To be determined</Text>
           </View>
 
           <View style={styles.row}>
             <Text style={styles.label}>Hospital Address</Text>
-            <Text style={styles.value}>{summaryData.hospitalAddress}</Text>
+            <Text style={styles.value}>To be determined</Text>
           </View>
 
           <View style={styles.row}>
-            <Text style={styles.label}>Hospital Number</Text>
-            <Text style={styles.value}>{summaryData.hospitalNumber}</Text>
+            <Text style={styles.label}>Hospital Phone</Text>
+            <Text style={styles.value}>To be determined</Text>
           </View>
 
           <View style={styles.row}>
             <Text style={styles.label}>Weather</Text>
-            <Text style={styles.value}>{summaryData.weather}</Text>
+            <Text style={styles.value}>To be determined</Text>
           </View>
 
           <View style={styles.row}>
             <Text style={styles.label}>Workers</Text>
-            <Text style={styles.value}>{workers.join(', ')}</Text>
-          </View>
-
-          <View style={styles.row}>
-            <Text style={styles.label}>Prepared by</Text>
-            <Text style={styles.value}>John Smith</Text>
+            <Text style={styles.value}>
+              {workers.map((w) => w.full_name).join(', ')}
+            </Text>
           </View>
         </View>
 
         <Text style={styles.sectionTitle}>Tasks</Text>
 
-        {tasks.map((task: string, index: number) => {
-          const taskData = taskRisksData[task] || {
-            risks: 'Standard workplace hazards',
-            mitigations: 'Follow safety protocols, use PPE',
-          };
-          return (
-            <View key={index} style={styles.taskCard}>
+        {tasks.map((task, index) => (
+          <React.Fragment key={index}>
+            <View style={styles.taskCard}>
               <View style={styles.taskHeader}>
-                <Text style={styles.taskName}>{task}</Text>
+                <Text style={styles.taskName}>{task.task_name}</Text>
               </View>
               <View style={styles.taskDetails}>
                 <Text style={styles.taskLabel}>Risks:</Text>
-                <Text style={styles.taskText}>{taskData.risks}</Text>
+                {task.hazards && task.hazards.length > 0 ? (
+                  task.hazards.map((hazard, hIndex) => (
+                    <Text key={hIndex} style={styles.taskBullet}>
+                      - {hazard}
+                    </Text>
+                  ))
+                ) : (
+                  <Text style={styles.taskText}>No hazards listed</Text>
+                )}
+
                 <Text style={[styles.taskLabel, styles.taskLabelMargin]}>
                   Mitigations:
                 </Text>
-                <Text style={styles.taskText}>{taskData.mitigations}</Text>
+                {task.mitigation && task.mitigation.length > 0 ? (
+                  task.mitigation.map((mitigation, mIndex) => (
+                    <Text key={mIndex} style={styles.taskBullet}>
+                      - {mitigation}
+                    </Text>
+                  ))
+                ) : (
+                  <Text style={styles.taskText}>No mitigations listed</Text>
+                )}
               </View>
             </View>
-          );
-        })}
+          </React.Fragment>
+        ))}
       </ScrollView>
 
       <View style={styles.footer}>
         <TouchableOpacity
-          style={styles.submitButton}
+          style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
           onPress={handleSubmit}
+          disabled={submitting}
           activeOpacity={0.7}
         >
-          <Text style={styles.submitButtonText}>SUBMIT FORM</Text>
+          {submitting ? (
+            <React.Fragment>
+              <ActivityIndicator size="small" color={colors.card} />
+              <Text style={styles.submitButtonText}>SUBMITTING...</Text>
+            </React.Fragment>
+          ) : (
+            <Text style={styles.submitButtonText}>SUBMIT FORM</Text>
+          )}
         </TouchableOpacity>
       </View>
     </View>
@@ -285,14 +370,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: colors.textSecondary,
+    marginTop: 8,
   },
   taskLabelMargin: {
-    marginTop: 8,
+    marginTop: 12,
   },
   taskText: {
     fontSize: 14,
     color: colors.text,
     lineHeight: 20,
+  },
+  taskBullet: {
+    fontSize: 14,
+    color: colors.text,
+    lineHeight: 20,
+    marginLeft: 8,
   },
   footer: {
     position: 'absolute',
@@ -312,6 +404,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 12,
+  },
+  submitButtonDisabled: {
+    backgroundColor: colors.highlight,
   },
   submitButtonText: {
     fontSize: 16,
