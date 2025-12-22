@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -29,10 +29,11 @@ export default function DailyActivityLogPage2() {
     setGeneralNotes,
   } = useActivityLog();
 
-  const [showRecorderModal, setShowRecorderModal] = React.useState(false);
+  const [showRecorderModal, setShowRecorderModal] = useState(false);
 
   const handleTakePhoto = async () => {
     try {
+      console.log('Take photo button pressed');
       const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
       
       if (permissionResult.granted === false) {
@@ -40,11 +41,14 @@ export default function DailyActivityLogPage2() {
         return;
       }
 
+      console.log('Launching camera...');
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         quality: 0.8,
       });
+
+      console.log('Camera result:', result);
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const newPhoto = {
@@ -52,16 +56,22 @@ export default function DailyActivityLogPage2() {
           mimeType: 'image/jpeg',
           isExisting: false,
         };
-        setPhotos([...photos, newPhoto]);
+        console.log('Adding new photo to state:', newPhoto.uri);
+        const updatedPhotos = [...photos, newPhoto];
+        setPhotos(updatedPhotos);
+        console.log('Photos updated. Total photos:', updatedPhotos.length);
       }
     } catch (error) {
-      console.log('Error taking photo:', error);
+      console.error('Error taking photo:', error);
       Alert.alert('Error', 'Failed to take photo. Please try again.');
     }
   };
 
   const handleRemovePhoto = (index: number) => {
-    setPhotos(photos.filter((_, i) => i !== index));
+    console.log('Removing photo at index:', index);
+    const updatedPhotos = photos.filter((_, i) => i !== index);
+    setPhotos(updatedPhotos);
+    console.log('Photos after removal. Total photos:', updatedPhotos.length);
   };
 
   const handleRecordVoiceMemo = () => {
@@ -70,7 +80,7 @@ export default function DailyActivityLogPage2() {
   };
 
   const handleSaveVoiceMemo = (uri: string, durationSeconds: number) => {
-    console.log('Saving voice memo:', uri, durationSeconds);
+    console.log('Saving voice memo. URI:', uri, 'Duration:', durationSeconds);
     
     const newMemo = {
       id: Date.now().toString(),
@@ -80,12 +90,18 @@ export default function DailyActivityLogPage2() {
       isExisting: false,
     };
     
-    setVoiceMemos([...voiceMemos, newMemo]);
+    console.log('New memo object:', newMemo);
+    const updatedMemos = [...voiceMemos, newMemo];
+    setVoiceMemos(updatedMemos);
+    console.log('Voice memos updated. Total memos:', updatedMemos.length);
     setShowRecorderModal(false);
   };
 
   const handleDeleteVoiceMemo = (id: string) => {
-    setVoiceMemos(voiceMemos.filter((memo) => memo.id !== id));
+    console.log('Deleting voice memo with id:', id);
+    const updatedMemos = voiceMemos.filter((memo) => memo.id !== id);
+    setVoiceMemos(updatedMemos);
+    console.log('Voice memos after deletion. Total memos:', updatedMemos.length);
   };
 
   const formatDuration = (seconds: number): string => {
@@ -94,11 +110,16 @@ export default function DailyActivityLogPage2() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const handleNotesChange = (text: string) => {
+    console.log('General notes changed. Length:', text.length);
+    setGeneralNotes(text);
+  };
+
   const handleNext = () => {
     console.log('Navigating to summary page...');
-    console.log('Photos:', photos.length);
-    console.log('Notes:', generalNotes);
-    console.log('Voice Memos:', voiceMemos.length);
+    console.log('Page 2 - Photos:', photos.length);
+    console.log('Page 2 - Notes length:', generalNotes.length);
+    console.log('Page 2 - Voice Memos:', voiceMemos.length);
     
     router.push('/daily-activity-log-3');
   };
@@ -176,7 +197,7 @@ export default function DailyActivityLogPage2() {
             placeholderTextColor={colors.textSecondary}
             multiline
             value={generalNotes}
-            onChangeText={setGeneralNotes}
+            onChangeText={handleNotesChange}
             textAlignVertical="top"
           />
         </View>
@@ -201,7 +222,7 @@ export default function DailyActivityLogPage2() {
           {voiceMemos.length > 0 && (
             <View style={styles.memoList}>
               {voiceMemos.map((memo, index) => (
-                <View key={index} style={styles.memoItem}>
+                <View key={memo.id} style={styles.memoItem}>
                   <View style={styles.memoContent}>
                     <IconSymbol
                       ios_icon_name="waveform"

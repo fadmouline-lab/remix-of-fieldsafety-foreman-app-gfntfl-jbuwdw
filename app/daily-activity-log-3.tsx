@@ -53,7 +53,13 @@ export default function DailyActivityLogPage3() {
   };
 
   const handleSubmit = async () => {
-    console.log('Submitting Daily Activity Log...');
+    console.log('=== SUBMITTING DAILY ACTIVITY LOG ===');
+    console.log('Near Miss:', nearMiss);
+    console.log('Incident:', incident);
+    console.log('Observation:', observation);
+    console.log('Photos:', photos.length);
+    console.log('Voice Memos:', voiceMemos.length);
+    console.log('General Notes length:', generalNotes.length);
     
     const success = await submitActivityLog();
     
@@ -70,6 +76,15 @@ export default function DailyActivityLogPage3() {
   const employeeRole = currentEmployee?.role || 'Employee';
   const projectName = currentProject?.name || 'Unknown Project';
   const projectLocation = currentProject?.location || 'Unknown Location';
+
+  // Log current state for debugging
+  console.log('Summary Page - Current State:');
+  console.log('- Near Miss:', nearMiss.value, nearMiss.description);
+  console.log('- Incident:', incident.value, incident.description);
+  console.log('- Observation:', observation.value, observation.description);
+  console.log('- Photos:', photos.length);
+  console.log('- Voice Memos:', voiceMemos.length);
+  console.log('- General Notes:', generalNotes.substring(0, 50));
 
   return (
     <View style={styles.container}>
@@ -211,7 +226,7 @@ export default function DailyActivityLogPage3() {
             {voiceMemos.length > 0 && (
               <View style={styles.memoList}>
                 {voiceMemos.map((memo, index) => (
-                  <View key={index} style={styles.memoItem}>
+                  <View key={memo.id} style={styles.memoItem}>
                     <IconSymbol
                       ios_icon_name="waveform"
                       android_material_icon_name="graphic-eq"

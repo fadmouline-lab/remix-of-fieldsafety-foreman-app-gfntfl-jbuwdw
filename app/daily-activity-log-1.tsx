@@ -1,5 +1,5 @@
 
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -37,28 +37,47 @@ export default function DailyActivityLogPage1() {
     if (mode === 'EDIT' && editingId) {
       console.log('Loading activity log for edit:', editingId);
       loadActivityLogForEdit(editingId);
-    } else {
-      // Clear form data when starting new
+    } else if (mode !== 'EDIT') {
+      // Clear form data when starting new (but not on every render)
+      console.log('Starting new activity log, clearing form data');
       clearFormData();
     }
-  }, [params.mode, params.editingId, loadActivityLogForEdit, clearFormData]);
+  }, [params.mode, params.editingId]);
 
   const handleNearMissToggle = (value: boolean) => {
+    console.log('Near miss toggle changed to:', value);
     setNearMiss({ value, description: value ? nearMiss.description : '' });
   };
 
   const handleIncidentToggle = (value: boolean) => {
+    console.log('Incident toggle changed to:', value);
     setIncident({ value, description: value ? incident.description : '' });
   };
 
   const handleObservationToggle = (value: boolean) => {
+    console.log('Observation toggle changed to:', value);
     setObservation({ value, description: value ? observation.description : '' });
   };
 
+  const handleNearMissDescriptionChange = (text: string) => {
+    console.log('Near miss description changed');
+    setNearMiss({ ...nearMiss, description: text });
+  };
+
+  const handleIncidentDescriptionChange = (text: string) => {
+    console.log('Incident description changed');
+    setIncident({ ...incident, description: text });
+  };
+
+  const handleObservationDescriptionChange = (text: string) => {
+    console.log('Observation description changed');
+    setObservation({ ...observation, description: text });
+  };
+
   const handleNext = () => {
-    console.log('Near Miss:', nearMiss);
-    console.log('Incident:', incident);
-    console.log('Observation:', observation);
+    console.log('Page 1 - Near Miss:', nearMiss);
+    console.log('Page 1 - Incident:', incident);
+    console.log('Page 1 - Observation:', observation);
     router.push('/daily-activity-log-2');
   };
 
@@ -102,7 +121,7 @@ export default function DailyActivityLogPage1() {
                 multiline
                 numberOfLines={4}
                 value={nearMiss.description}
-                onChangeText={(text) => setNearMiss({ ...nearMiss, description: text })}
+                onChangeText={handleNearMissDescriptionChange}
                 textAlignVertical="top"
               />
               <View style={styles.helperBox}>
@@ -138,7 +157,7 @@ export default function DailyActivityLogPage1() {
                 multiline
                 numberOfLines={4}
                 value={incident.description}
-                onChangeText={(text) => setIncident({ ...incident, description: text })}
+                onChangeText={handleIncidentDescriptionChange}
                 textAlignVertical="top"
               />
               <View style={styles.helperBox}>
@@ -174,7 +193,7 @@ export default function DailyActivityLogPage1() {
                 multiline
                 numberOfLines={4}
                 value={observation.description}
-                onChangeText={(text) => setObservation({ ...observation, description: text })}
+                onChangeText={handleObservationDescriptionChange}
                 textAlignVertical="top"
               />
               <View style={styles.helperBox}>
