@@ -8,10 +8,14 @@ import {
   TouchableOpacity,
   Platform,
   TextInput,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 
 interface DumpsterQuantities {
   [key: string]: number;
@@ -20,6 +24,7 @@ interface DumpsterQuantities {
 export default function HaulingDumpstersPage2Screen() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { currentEmployee, currentProject } = useAuth();
 
   const addQuantities: DumpsterQuantities = params.addQuantities
     ? JSON.parse(params.addQuantities as string)
@@ -42,12 +47,29 @@ export default function HaulingDumpstersPage2Screen() {
     });
   };
 
+  // Get user name from current employee
+  const getUserName = () => {
+    if (currentEmployee) {
+      return `${currentEmployee.first_name} ${currentEmployee.last_name}`;
+    }
+    return 'Unknown User';
+  };
+
+  // Get default address from project location
+  const getDefaultAddress = () => {
+    if (currentProject) {
+      return currentProject.location || '123 Construction Site Ave, Chicago, IL 60611';
+    }
+    return '123 Construction Site Ave, Chicago, IL 60611';
+  };
+
   // State for additional fields
   const [currentTime] = useState(getCurrentTime());
-  const [userName] = useState('Juan Perez'); // Placeholder for logged-in foreman
-  const [address, setAddress] = useState('123 Construction Site Ave, Chicago, IL 60611');
+  const [userName] = useState(getUserName());
+  const [address, setAddress] = useState(getDefaultAddress());
   const [isEditingAddress, setIsEditingAddress] = useState(false);
   const [tempAddress, setTempAddress] = useState(address);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleEditAddress = () => {
     setTempAddress(address);
@@ -65,17 +87,88 @@ export default function HaulingDumpstersPage2Screen() {
     setIsEditingAddress(false);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     console.log('Submitting Hauling Dumpsters Request...');
-    console.log('Add quantities:', addQuantities);
-    console.log('Replace quantities:', replaceQuantities);
-    console.log('Time:', currentTime);
-    console.log('User Name:', userName);
-    console.log('Address:', address);
     
-    // Navigate back to Dashboard
-    router.back();
-    router.back();
+    // Validate required data
+    if (!currentEmployee) {
+      Alert.alert('Error', 'Employee information not found. Please log in again.');
+      return;
+    }
+
+    if (!currentProject) {
+      Alert.alert('Error', 'No project selected. Please select a project first.');
+      return;
+    }
+
+    // Check if at least one dumpster is selected
+    const hasAddItems = addItems.length > 0;
+    const hasReplaceItems = replaceItems.length > 0;
+    
+    if (!hasAddItems && !hasReplaceItems) {
+      Alert.alert('Error', 'Please select at least one dumpster to add or replace.');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      console.log('Getting auth session...');
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        console.error('Session error:', sessionError);
+        Alert.alert('Error', 'Authentication error. Please log in again.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      console.log('Calling Edge Function...');
+      const { data, error } = await supabase.functions.invoke('submit-hauling-request', {
+        body: {
+          project_id: currentProject.id,
+          project_address: address,
+          add_quantities: addQuantities,
+          replace_quantities: replaceQuantities,
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) {
+        console.error('Edge Function error:', error);
+        Alert.alert('Error', 'Failed to submit hauling request. Please try again.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      console.log('Edge Function response:', data);
+
+      if (data.success) {
+        Alert.alert(
+          'Success',
+          'Your hauling request has been submitted successfully.',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                // Navigate back to Dashboard
+                router.back();
+                router.back();
+              },
+            },
+          ]
+        );
+      } else {
+        Alert.alert('Error', data.error || 'Failed to submit hauling request.');
+        setIsSubmitting(false);
+      }
+    } catch (error) {
+      console.error('Submit error:', error);
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -237,11 +330,16 @@ export default function HaulingDumpstersPage2Screen() {
 
       <View style={styles.footer}>
         <TouchableOpacity
-          style={styles.submitButton}
+          style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
           onPress={handleSubmit}
           activeOpacity={0.7}
+          disabled={isSubmitting}
         >
-          <Text style={styles.submitButtonText}>SUBMIT REQUEST</Text>
+          {isSubmitting ? (
+            <ActivityIndicator color={colors.card} size="small" />
+          ) : (
+            <Text style={styles.submitButtonText}>SUBMIT REQUEST</Text>
+          )}
         </TouchableOpacity>
       </View>
     </View>
@@ -415,5 +513,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.card,
     letterSpacing: 0.5,
+  },
+  submitButtonDisabled: {
+    opacity: 0.6,
   },
 });
