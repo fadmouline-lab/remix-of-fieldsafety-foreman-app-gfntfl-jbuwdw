@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from './AuthContext';
 import { Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { File } from 'expo-file-system';
 
 interface QuestionState {
   value: boolean;
@@ -218,26 +219,40 @@ export function ActivityLogProvider({ children }: { children: React.ReactNode })
       console.log('Photo URI:', photoUri);
       console.log('Storage path:', storagePath);
 
-      // Fetch the image as an ArrayBuffer (this is the key fix!)
-      console.log('Fetching photo from URI...');
-      const response = await fetch(photoUri);
-      console.log('Fetch response status:', response.status);
-      console.log('Fetch response headers:', response.headers);
+      // Use Expo 54 File API - create a File instance from the URI
+      console.log('Creating File instance from URI...');
+      const file = new File(photoUri);
       
-      const arraybuffer = await response.arrayBuffer();
-      console.log('ArrayBuffer size:', arraybuffer.byteLength, 'bytes');
+      // Check if file exists
+      if (!file.exists) {
+        console.error('File does not exist at URI:', photoUri);
+        return null;
+      }
+      
+      console.log('File size:', file.size, 'bytes');
+      console.log('File type:', file.type);
 
-      if (arraybuffer.byteLength === 0) {
-        console.error('ArrayBuffer is empty! Photo file may not exist or is corrupted.');
+      if (file.size === 0) {
+        console.error('File is empty! Photo file may be corrupted.');
         return null;
       }
 
-      // Upload to Supabase storage with ArrayBuffer and explicit contentType
+      // Read file as Uint8Array (bytes) - this is Expo-compatible
+      console.log('Reading file bytes...');
+      const fileBytes = await file.bytes();
+      console.log('File bytes length:', fileBytes.byteLength, 'bytes');
+
+      if (fileBytes.byteLength === 0) {
+        console.error('File bytes are empty!');
+        return null;
+      }
+
+      // Upload to Supabase storage with Uint8Array and explicit contentType
       console.log('Uploading to Supabase storage...');
       const { data, error: uploadError } = await supabase.storage
         .from('activity-log-photos')
-        .upload(storagePath, arraybuffer, {
-          contentType: 'image/jpeg',
+        .upload(storagePath, fileBytes, {
+          contentType: file.type || 'image/jpeg',
           upsert: false,
         });
 
@@ -276,26 +291,40 @@ export function ActivityLogProvider({ children }: { children: React.ReactNode })
       console.log('Voice memo URI:', memoUri);
       console.log('Storage path:', storagePath);
 
-      // Fetch the audio file as an ArrayBuffer (this is the key fix!)
-      console.log('Fetching voice memo from URI...');
-      const response = await fetch(memoUri);
-      console.log('Fetch response status:', response.status);
-      console.log('Fetch response headers:', response.headers);
+      // Use Expo 54 File API - create a File instance from the URI
+      console.log('Creating File instance from URI...');
+      const file = new File(memoUri);
       
-      const arraybuffer = await response.arrayBuffer();
-      console.log('ArrayBuffer size:', arraybuffer.byteLength, 'bytes');
+      // Check if file exists
+      if (!file.exists) {
+        console.error('File does not exist at URI:', memoUri);
+        return null;
+      }
+      
+      console.log('File size:', file.size, 'bytes');
+      console.log('File type:', file.type);
 
-      if (arraybuffer.byteLength === 0) {
-        console.error('ArrayBuffer is empty! Voice memo file may not exist or is corrupted.');
+      if (file.size === 0) {
+        console.error('File is empty! Voice memo file may be corrupted.');
         return null;
       }
 
-      // Upload to Supabase storage with ArrayBuffer and explicit contentType
+      // Read file as Uint8Array (bytes) - this is Expo-compatible
+      console.log('Reading file bytes...');
+      const fileBytes = await file.bytes();
+      console.log('File bytes length:', fileBytes.byteLength, 'bytes');
+
+      if (fileBytes.byteLength === 0) {
+        console.error('File bytes are empty!');
+        return null;
+      }
+
+      // Upload to Supabase storage with Uint8Array and explicit contentType
       console.log('Uploading to Supabase storage...');
       const { data, error: uploadError } = await supabase.storage
         .from('activity-log-voice-memos')
-        .upload(storagePath, arraybuffer, {
-          contentType: 'audio/m4a',
+        .upload(storagePath, fileBytes, {
+          contentType: file.type || 'audio/m4a',
           upsert: false,
         });
 
