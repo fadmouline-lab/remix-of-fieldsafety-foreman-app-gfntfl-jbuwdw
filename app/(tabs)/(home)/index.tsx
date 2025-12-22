@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -70,7 +70,7 @@ export default function HomeScreen() {
       console.log('No project selected, redirecting to select project');
       router.replace('/select-project');
     }
-  }, [currentProject, session, currentEmployee]);
+  }, [currentProject, session, currentEmployee, router]);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -78,18 +78,9 @@ export default function HomeScreen() {
       console.log('No session, redirecting to login');
       router.replace('/login');
     }
-  }, [session]);
+  }, [session, router]);
 
-  // Load completed forms when screen is focused
-  useFocusEffect(
-    React.useCallback(() => {
-      if (currentEmployee && currentProject) {
-        loadCompletedForms();
-      }
-    }, [currentEmployee, currentProject])
-  );
-
-  const loadCompletedForms = async () => {
+  const loadCompletedForms = useCallback(async () => {
     if (!currentEmployee || !currentProject) {
       console.log('Cannot load completed forms: missing employee or project');
       return;
@@ -195,7 +186,16 @@ export default function HomeScreen() {
     } finally {
       setLoadingCompletedForms(false);
     }
-  };
+  }, [currentEmployee, currentProject]);
+
+  // Load completed forms when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      if (currentEmployee && currentProject) {
+        loadCompletedForms();
+      }
+    }, [currentEmployee, currentProject, loadCompletedForms])
+  );
 
   const handleFormPress = (formTitle: string, formId: string, tabType: TabType) => {
     console.log('Form pressed:', formTitle, 'ID:', formId);

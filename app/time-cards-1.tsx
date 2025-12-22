@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -48,18 +48,7 @@ export default function TimeCardsPage1Screen() {
   const mode = (params.mode as string) || 'CREATE';
   const editingId = params.editingId as string | undefined;
 
-  useEffect(() => {
-    if (currentEmployee && currentProject) {
-      if (mode === 'EDIT' && editingId) {
-        loadExistingTimeCard();
-      } else {
-        loadTodaysPTP();
-      }
-      loadAvailableEmployees();
-    }
-  }, [currentEmployee, currentProject, mode, editingId]);
-
-  const loadTodaysPTP = async () => {
+  const loadTodaysPTP = useCallback(async () => {
     if (!currentEmployee || !currentProject) return;
 
     console.log('Loading today\'s PTP...');
@@ -143,9 +132,9 @@ export default function TimeCardsPage1Screen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentEmployee, currentProject]);
 
-  const loadExistingTimeCard = async () => {
+  const loadExistingTimeCard = useCallback(async () => {
     if (!currentEmployee || !currentProject || !editingId) return;
 
     console.log('Loading existing time card:', editingId);
@@ -209,9 +198,9 @@ export default function TimeCardsPage1Screen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentEmployee, currentProject, editingId]);
 
-  const loadAvailableEmployees = async () => {
+  const loadAvailableEmployees = useCallback(async () => {
     if (!currentEmployee) return;
 
     console.log('Loading available employees...');
@@ -240,7 +229,18 @@ export default function TimeCardsPage1Screen() {
     } catch (error) {
       console.error('Exception loading employees:', error);
     }
-  };
+  }, [currentEmployee]);
+
+  useEffect(() => {
+    if (currentEmployee && currentProject) {
+      if (mode === 'EDIT' && editingId) {
+        loadExistingTimeCard();
+      } else {
+        loadTodaysPTP();
+      }
+      loadAvailableEmployees();
+    }
+  }, [currentEmployee, currentProject, mode, editingId, loadExistingTimeCard, loadTodaysPTP, loadAvailableEmployees]);
 
   const handleHoursChange = (employee_id: string, delta: number) => {
     setWorkers((prevWorkers) =>

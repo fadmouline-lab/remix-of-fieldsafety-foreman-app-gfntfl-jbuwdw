@@ -41,9 +41,9 @@ export default function VoiceRecorderModal({
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recorderState = useAudioRecorderState(audioRecorder);
   
-  // Audio player for playback preview
-  const player = recordingUri ? useAudioPlayer(recordingUri) : null;
-  const playerStatus = player ? useAudioPlayerStatus(player) : null;
+  // Audio player for playback preview - always call hooks unconditionally
+  const player = useAudioPlayer(recordingUri || '');
+  const playerStatus = useAudioPlayerStatus(player);
 
   useEffect(() => {
     if (visible) {
@@ -59,10 +59,10 @@ export default function VoiceRecorderModal({
   }, [visible]);
 
   useEffect(() => {
-    if (playerStatus) {
+    if (playerStatus && recordingUri) {
       setIsPlaying(playerStatus.isPlaying);
     }
-  }, [playerStatus]);
+  }, [playerStatus, recordingUri]);
 
   const requestPermissions = async () => {
     try {

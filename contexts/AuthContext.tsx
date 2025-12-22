@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { Alert } from 'react-native';
@@ -55,7 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [canDuplicatePreTask, setCanDuplicatePreTask] = useState(false);
 
   // Check for previous PTP submission
-  const checkForPreviousPtp = async () => {
+  const checkForPreviousPtp = useCallback(async () => {
     if (!currentEmployee || !currentProject) {
       console.log('Cannot check for previous PTP: missing employee or project');
       setCanDuplicatePreTask(false);
@@ -96,7 +96,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setCanDuplicatePreTask(false);
       setLastSubmittedPtpId(null);
     }
-  };
+  }, [currentEmployee, currentProject]);
 
   // Load employee data from Supabase
   const loadEmployeeData = async (userId: string) => {
@@ -228,7 +228,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (currentEmployee && currentProject) {
       checkForPreviousPtp();
     }
-  }, [currentEmployee, currentProject]);
+  }, [currentEmployee, currentProject, checkForPreviousPtp]);
 
   const signIn = async (email: string, password: string) => {
     console.log('Signing in with email:', email);

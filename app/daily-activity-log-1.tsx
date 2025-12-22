@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -41,7 +41,7 @@ export default function DailyActivityLogPage1() {
       // Clear form data when starting new
       clearFormData();
     }
-  }, [params.mode, params.editingId]);
+  }, [params.mode, params.editingId, loadActivityLogForEdit, clearFormData]);
 
   const handleNearMissToggle = (value: boolean) => {
     setNearMiss({ value, description: value ? nearMiss.description : '' });

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -35,11 +35,7 @@ export default function PreTaskSelectTasksScreen() {
   const mode = (params.mode as string) || 'CREATE';
   const editingId = params.editingId as string | undefined;
 
-  useEffect(() => {
-    loadTasks();
-  }, [currentProject]);
-
-  const loadTasks = async () => {
+  const loadTasks = useCallback(async () => {
     if (!currentProject) {
       console.log('No current project selected');
       Alert.alert('Error', 'No project selected. Please select a project first.');
@@ -77,7 +73,7 @@ export default function PreTaskSelectTasksScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentProject, mode]);
 
   const preloadSelectedTasks = async (availableTasks: PreTaskCard[]) => {
     const sourceId = mode === 'EDIT' ? editingId : lastSubmittedPtpId;
@@ -113,6 +109,10 @@ export default function PreTaskSelectTasksScreen() {
       console.error('Exception preloading tasks:', error);
     }
   };
+
+  useEffect(() => {
+    loadTasks();
+  }, [loadTasks]);
 
   const toggleTask = (task: PreTaskCard) => {
     const isSelected = selectedTasks.some((t) => t.id === task.id);

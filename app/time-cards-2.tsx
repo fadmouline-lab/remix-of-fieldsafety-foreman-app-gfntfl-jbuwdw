@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -38,13 +38,7 @@ export default function TimeCardsPage2Screen() {
   const editingId = params.editingId as string | undefined;
 
   // Load original workers when in EDIT mode
-  useEffect(() => {
-    if (mode === 'EDIT' && editingId) {
-      loadOriginalWorkers();
-    }
-  }, [mode, editingId]);
-
-  const loadOriginalWorkers = async () => {
+  const loadOriginalWorkers = useCallback(async () => {
     if (!editingId) return;
 
     console.log('Loading original workers for comparison...');
@@ -82,7 +76,13 @@ export default function TimeCardsPage2Screen() {
     } catch (error) {
       console.error('Exception loading original workers:', error);
     }
-  };
+  }, [editingId]);
+
+  useEffect(() => {
+    if (mode === 'EDIT' && editingId) {
+      loadOriginalWorkers();
+    }
+  }, [mode, editingId, loadOriginalWorkers]);
 
   const handleSubmit = async () => {
     if (!currentEmployee || !currentProject) {

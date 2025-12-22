@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -45,15 +45,7 @@ export default function PreTaskSelectWorkersScreen() {
   const mode = (params.mode as string) || 'CREATE';
   const editingId = params.editingId as string | undefined;
 
-  useEffect(() => {
-    loadWorkers();
-  }, [currentEmployee]);
-
-  useEffect(() => {
-    filterAndDisplayWorkers();
-  }, [allWorkers, searchQuery, displayCount]);
-
-  const loadWorkers = async () => {
+  const loadWorkers = useCallback(async () => {
     if (!currentEmployee) {
       console.log('No current employee');
       Alert.alert('Error', 'Employee data not loaded. Please try logging in again.');
@@ -103,7 +95,7 @@ export default function PreTaskSelectWorkersScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentEmployee, mode]);
 
   const preloadSelectedWorkers = async (availableWorkers: Employee[]) => {
     const sourceId = mode === 'EDIT' ? editingId : lastSubmittedPtpId;
@@ -142,7 +134,7 @@ export default function PreTaskSelectWorkersScreen() {
     }
   };
 
-  const filterAndDisplayWorkers = () => {
+  const filterAndDisplayWorkers = useCallback(() => {
     let filtered = [...allWorkers];
 
     // Filter by search query
@@ -165,7 +157,15 @@ export default function PreTaskSelectWorkersScreen() {
     // Combine pinned user at top with limited others
     const result = pinnedUser ? [pinnedUser, ...limitedOthers] : limitedOthers;
     setDisplayedWorkers(result);
-  };
+  }, [allWorkers, searchQuery, displayCount, currentEmployee]);
+
+  useEffect(() => {
+    loadWorkers();
+  }, [loadWorkers]);
+
+  useEffect(() => {
+    filterAndDisplayWorkers();
+  }, [filterAndDisplayWorkers]);
 
   const toggleWorker = (worker: Employee) => {
     const fullName = `${worker.first_name} ${worker.last_name}`;
