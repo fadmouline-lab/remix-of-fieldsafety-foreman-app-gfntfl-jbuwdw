@@ -214,29 +214,48 @@ export function ActivityLogProvider({ children }: { children: React.ReactNode })
       const filename = `photo_${timestamp}.jpg`;
       const storagePath = `${currentEmployee.org_id}/${currentProject.id}/${activityLogId}/${filename}`;
 
-      console.log('Uploading photo to:', storagePath);
+      console.log('=== PHOTO UPLOAD DEBUG ===');
+      console.log('Photo URI:', photoUri);
+      console.log('Storage path:', storagePath);
 
-      // Fetch the image as a blob
+      // Fetch the image as an ArrayBuffer (this is the key fix!)
+      console.log('Fetching photo from URI...');
       const response = await fetch(photoUri);
-      const blob = await response.blob();
+      console.log('Fetch response status:', response.status);
+      console.log('Fetch response headers:', response.headers);
+      
+      const arraybuffer = await response.arrayBuffer();
+      console.log('ArrayBuffer size:', arraybuffer.byteLength, 'bytes');
 
-      // Upload to Supabase storage
-      const { error: uploadError } = await supabase.storage
+      if (arraybuffer.byteLength === 0) {
+        console.error('ArrayBuffer is empty! Photo file may not exist or is corrupted.');
+        return null;
+      }
+
+      // Upload to Supabase storage with ArrayBuffer and explicit contentType
+      console.log('Uploading to Supabase storage...');
+      const { data, error: uploadError } = await supabase.storage
         .from('activity-log-photos')
-        .upload(storagePath, blob, {
+        .upload(storagePath, arraybuffer, {
           contentType: 'image/jpeg',
           upsert: false,
         });
 
       if (uploadError) {
-        console.error('Error uploading photo:', uploadError);
+        console.error('Supabase upload error:', uploadError);
+        console.error('Error details:', JSON.stringify(uploadError, null, 2));
         return null;
       }
 
-      console.log('Photo uploaded successfully');
+      console.log('Photo uploaded successfully!');
+      console.log('Upload response data:', data);
       return storagePath;
     } catch (error) {
       console.error('Exception uploading photo:', error);
+      if (error instanceof Error) {
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+      }
       return null;
     }
   };
@@ -253,29 +272,48 @@ export function ActivityLogProvider({ children }: { children: React.ReactNode })
       const filename = `memo_${timestamp}.m4a`;
       const storagePath = `${currentEmployee.org_id}/${currentProject.id}/${activityLogId}/${filename}`;
 
-      console.log('Uploading voice memo to:', storagePath);
+      console.log('=== VOICE MEMO UPLOAD DEBUG ===');
+      console.log('Voice memo URI:', memoUri);
+      console.log('Storage path:', storagePath);
 
-      // Fetch the audio file as a blob
+      // Fetch the audio file as an ArrayBuffer (this is the key fix!)
+      console.log('Fetching voice memo from URI...');
       const response = await fetch(memoUri);
-      const blob = await response.blob();
+      console.log('Fetch response status:', response.status);
+      console.log('Fetch response headers:', response.headers);
+      
+      const arraybuffer = await response.arrayBuffer();
+      console.log('ArrayBuffer size:', arraybuffer.byteLength, 'bytes');
 
-      // Upload to Supabase storage
-      const { error: uploadError } = await supabase.storage
+      if (arraybuffer.byteLength === 0) {
+        console.error('ArrayBuffer is empty! Voice memo file may not exist or is corrupted.');
+        return null;
+      }
+
+      // Upload to Supabase storage with ArrayBuffer and explicit contentType
+      console.log('Uploading to Supabase storage...');
+      const { data, error: uploadError } = await supabase.storage
         .from('activity-log-voice-memos')
-        .upload(storagePath, blob, {
+        .upload(storagePath, arraybuffer, {
           contentType: 'audio/m4a',
           upsert: false,
         });
 
       if (uploadError) {
-        console.error('Error uploading voice memo:', uploadError);
+        console.error('Supabase upload error:', uploadError);
+        console.error('Error details:', JSON.stringify(uploadError, null, 2));
         return null;
       }
 
-      console.log('Voice memo uploaded successfully');
+      console.log('Voice memo uploaded successfully!');
+      console.log('Upload response data:', data);
       return storagePath;
     } catch (error) {
       console.error('Exception uploading voice memo:', error);
+      if (error instanceof Error) {
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+      }
       return null;
     }
   };
@@ -287,7 +325,14 @@ export function ActivityLogProvider({ children }: { children: React.ReactNode })
       return false;
     }
 
-    console.log('Submitting activity log...');
+    console.log('=== SUBMITTING ACTIVITY LOG ===');
+    console.log('Near Miss:', nearMiss);
+    console.log('Incident:', incident);
+    console.log('Observation:', observation);
+    console.log('Photos to upload:', photos.length);
+    console.log('Voice Memos to upload:', voiceMemos.length);
+    console.log('General Notes length:', generalNotes.length);
+    
     setLoading(true);
 
     try {
@@ -324,7 +369,7 @@ export function ActivityLogProvider({ children }: { children: React.ReactNode })
         }
 
         activityLogId = newLog.id;
-        console.log('Activity log created:', activityLogId);
+        console.log('Activity log created with ID:', activityLogId);
       } else {
         // UPDATE existing activity log
         console.log('Updating existing activity log:', editingActivityLogId);
@@ -365,7 +410,7 @@ export function ActivityLogProvider({ children }: { children: React.ReactNode })
           return false;
         }
 
-        console.log('Activity log updated');
+        console.log('Activity log updated successfully');
       }
 
       // Step B: Handle photo attachments
@@ -400,12 +445,21 @@ export function ActivityLogProvider({ children }: { children: React.ReactNode })
 
       // Upload and insert new photos
       const newPhotos = photos.filter((p) => !p.isExisting);
-      console.log('Uploading new photos:', newPhotos.length);
+      console.log('=== UPLOADING NEW PHOTOS ===');
+      console.log('Number of new photos to upload:', newPhotos.length);
 
-      for (const photo of newPhotos) {
+      for (let i = 0; i < newPhotos.length; i++) {
+        const photo = newPhotos[i];
+        console.log(`\n--- Uploading photo ${i + 1}/${newPhotos.length} ---`);
+        console.log('Photo URI:', photo.uri);
+        console.log('Photo MIME type:', photo.mimeType);
+        
         const storagePath = await uploadPhoto(photo.uri, activityLogId!);
         
         if (storagePath) {
+          console.log('Photo uploaded to storage path:', storagePath);
+          console.log('Inserting photo record into database...');
+          
           const { error: photoError } = await supabase
             .from('daily_activity_log_photos')
             .insert({
@@ -418,7 +472,11 @@ export function ActivityLogProvider({ children }: { children: React.ReactNode })
 
           if (photoError) {
             console.error('Error inserting photo record:', photoError);
+          } else {
+            console.log('Photo record inserted successfully');
           }
+        } else {
+          console.error('Failed to upload photo - storagePath is null');
         }
       }
 
@@ -454,9 +512,16 @@ export function ActivityLogProvider({ children }: { children: React.ReactNode })
 
       // Upload and insert new voice memos
       const newMemos = voiceMemos.filter((m) => !m.isExisting);
-      console.log('Uploading new voice memos:', newMemos.length);
+      console.log('=== UPLOADING NEW VOICE MEMOS ===');
+      console.log('Number of new voice memos to upload:', newMemos.length);
 
-      for (const memo of newMemos) {
+      for (let i = 0; i < newMemos.length; i++) {
+        const memo = newMemos[i];
+        console.log(`\n--- Uploading voice memo ${i + 1}/${newMemos.length} ---`);
+        console.log('Memo ID:', memo.id);
+        console.log('Memo URI:', memo.uri);
+        console.log('Memo duration:', memo.durationSeconds, 'seconds');
+        
         if (!memo.uri) {
           console.warn('Voice memo missing URI, skipping:', memo.id);
           continue;
@@ -465,6 +530,9 @@ export function ActivityLogProvider({ children }: { children: React.ReactNode })
         const storagePath = await uploadVoiceMemo(memo.uri, activityLogId!);
         
         if (storagePath) {
+          console.log('Voice memo uploaded to storage path:', storagePath);
+          console.log('Inserting voice memo record into database...');
+          
           const { error: memoError } = await supabase
             .from('daily_activity_log_voice_memos')
             .insert({
@@ -477,14 +545,23 @@ export function ActivityLogProvider({ children }: { children: React.ReactNode })
 
           if (memoError) {
             console.error('Error inserting voice memo record:', memoError);
+          } else {
+            console.log('Voice memo record inserted successfully');
           }
+        } else {
+          console.error('Failed to upload voice memo - storagePath is null');
         }
       }
 
-      console.log('Activity log submitted successfully');
+      console.log('=== ACTIVITY LOG SUBMISSION COMPLETE ===');
+      Alert.alert('Success', 'Activity log submitted successfully');
       return true;
     } catch (error) {
       console.error('Exception submitting activity log:', error);
+      if (error instanceof Error) {
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+      }
       Alert.alert('Error', 'Failed to submit activity log');
       return false;
     } finally {
