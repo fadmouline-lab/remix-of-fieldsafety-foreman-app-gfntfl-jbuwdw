@@ -16,6 +16,7 @@ import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import * as ImagePicker from 'expo-image-picker';
 import { useActivityLog } from '@/contexts/ActivityLogContext';
+import VoiceRecorderModal from '@/components/VoiceRecorderModal';
 
 export default function DailyActivityLogPage2() {
   const router = useRouter();
@@ -28,7 +29,7 @@ export default function DailyActivityLogPage2() {
     setGeneralNotes,
   } = useActivityLog();
 
-  const [isRecording, setIsRecording] = React.useState(false);
+  const [showRecorderModal, setShowRecorderModal] = React.useState(false);
 
   const handleTakePhoto = async () => {
     try {
@@ -64,24 +65,33 @@ export default function DailyActivityLogPage2() {
   };
 
   const handleRecordVoiceMemo = () => {
-    console.log('Recording voice memo...');
-    setIsRecording(true);
+    console.log('Opening voice recorder modal...');
+    setShowRecorderModal(true);
+  };
+
+  const handleSaveVoiceMemo = (uri: string, durationSeconds: number) => {
+    console.log('Saving voice memo:', uri, durationSeconds);
     
-    // Simulate recording for 1 second
-    setTimeout(() => {
-      const newMemo = {
-        id: Date.now().toString(),
-        duration: '0:15',
-        durationSeconds: 15,
-        isExisting: false,
-      };
-      setVoiceMemos([...voiceMemos, newMemo]);
-      setIsRecording(false);
-    }, 1000);
+    const newMemo = {
+      id: Date.now().toString(),
+      uri,
+      duration: formatDuration(durationSeconds),
+      durationSeconds,
+      isExisting: false,
+    };
+    
+    setVoiceMemos([...voiceMemos, newMemo]);
+    setShowRecorderModal(false);
   };
 
   const handleDeleteVoiceMemo = (id: string) => {
     setVoiceMemos(voiceMemos.filter((memo) => memo.id !== id));
+  };
+
+  const formatDuration = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   const handleNext = () => {
@@ -175,20 +185,17 @@ export default function DailyActivityLogPage2() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Voice Memos</Text>
           <TouchableOpacity
-            style={[styles.recordButton, isRecording && styles.recordButtonActive]}
+            style={styles.recordButton}
             onPress={handleRecordVoiceMemo}
             activeOpacity={0.7}
-            disabled={isRecording}
           >
             <IconSymbol
               ios_icon_name="mic.fill"
               android_material_icon_name="mic"
               size={24}
-              color={isRecording ? colors.secondary : colors.card}
+              color={colors.card}
             />
-            <Text style={styles.recordButtonText}>
-              {isRecording ? 'Recording...' : 'Record Voice Memo'}
-            </Text>
+            <Text style={styles.recordButtonText}>Add Voice Memo</Text>
           </TouchableOpacity>
 
           {voiceMemos.length > 0 && (
@@ -203,7 +210,7 @@ export default function DailyActivityLogPage2() {
                       color={colors.primary}
                     />
                     <View style={styles.memoInfo}>
-                      <Text style={styles.memoLabel}>Voice Memo</Text>
+                      <Text style={styles.memoLabel}>Voice Memo {index + 1}</Text>
                       <Text style={styles.memoDuration}>{memo.duration}</Text>
                     </View>
                   </View>
@@ -234,6 +241,12 @@ export default function DailyActivityLogPage2() {
           <Text style={styles.nextButtonText}>NEXT</Text>
         </TouchableOpacity>
       </View>
+
+      <VoiceRecorderModal
+        visible={showRecorderModal}
+        onClose={() => setShowRecorderModal(false)}
+        onSave={handleSaveVoiceMemo}
+      />
     </View>
   );
 }
@@ -340,9 +353,6 @@ const styles = StyleSheet.create({
     gap: 12,
     boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
     elevation: 3,
-  },
-  recordButtonActive: {
-    backgroundColor: colors.secondary,
   },
   recordButtonText: {
     fontSize: 16,

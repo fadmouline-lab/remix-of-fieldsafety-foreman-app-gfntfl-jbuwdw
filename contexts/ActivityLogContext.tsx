@@ -19,6 +19,7 @@ interface PhotoAttachment {
 
 interface VoiceMemoAttachment {
   id: string;
+  uri?: string;
   duration: string;
   durationSeconds?: number;
   storagePath?: string;
@@ -240,23 +241,38 @@ export function ActivityLogProvider({ children }: { children: React.ReactNode })
     }
   };
 
-  const uploadVoiceMemo = async (memoData: any, activityLogId: string): Promise<string | null> => {
+  const uploadVoiceMemo = async (memoUri: string, activityLogId: string): Promise<string | null> => {
     if (!currentEmployee || !currentProject) {
       console.error('Cannot upload voice memo: missing employee or project');
       return null;
     }
 
     try {
-      // For now, we'll just return a placeholder path
-      // In a real implementation, you would upload the actual audio file
+      // Generate unique filename
       const timestamp = Date.now();
       const filename = `memo_${timestamp}.m4a`;
       const storagePath = `${currentEmployee.org_id}/${currentProject.id}/${activityLogId}/${filename}`;
 
-      console.log('Voice memo storage path:', storagePath);
-      
-      // TODO: Implement actual audio file upload
-      // For now, just return the path
+      console.log('Uploading voice memo to:', storagePath);
+
+      // Fetch the audio file as a blob
+      const response = await fetch(memoUri);
+      const blob = await response.blob();
+
+      // Upload to Supabase storage
+      const { error: uploadError } = await supabase.storage
+        .from('activity-log-voice-memos')
+        .upload(storagePath, blob, {
+          contentType: 'audio/m4a',
+          upsert: false,
+        });
+
+      if (uploadError) {
+        console.error('Error uploading voice memo:', uploadError);
+        return null;
+      }
+
+      console.log('Voice memo uploaded successfully');
       return storagePath;
     } catch (error) {
       console.error('Exception uploading voice memo:', error);
@@ -441,7 +457,12 @@ export function ActivityLogProvider({ children }: { children: React.ReactNode })
       console.log('Uploading new voice memos:', newMemos.length);
 
       for (const memo of newMemos) {
-        const storagePath = await uploadVoiceMemo(memo, activityLogId!);
+        if (!memo.uri) {
+          console.warn('Voice memo missing URI, skipping:', memo.id);
+          continue;
+        }
+
+        const storagePath = await uploadVoiceMemo(memo.uri, activityLogId!);
         
         if (storagePath) {
           const { error: memoError } = await supabase
