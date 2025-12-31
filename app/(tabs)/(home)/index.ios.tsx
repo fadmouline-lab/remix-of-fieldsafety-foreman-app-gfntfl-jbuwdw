@@ -289,8 +289,10 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerContent}>
-          <View>
-            <Text style={styles.projectName}>{projectName}</Text>
+          <View style={styles.headerTextContainer}>
+            <Text style={styles.projectName} numberOfLines={1} ellipsizeMode="tail">
+              {projectName}
+            </Text>
             <TouchableOpacity 
               style={styles.contactRow}
               onPress={handleOpenProjectInfo}
@@ -806,6 +808,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    gap: 12,
+  },
+  headerTextContainer: {
+    flex: 1,
+    minWidth: 0,
   },
   projectName: {
     fontSize: 28,

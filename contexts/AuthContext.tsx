@@ -149,11 +149,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const projectIds = assignmentsData.map((a) => a.project_id);
       console.log('Project IDs:', projectIds);
 
-      // Fetch projects
+      // Fetch projects - ONLY include planning, active, or completed projects
+      // Exclude archived projects
       const { data: projectsData, error: projectsError } = await supabase
         .from('projects')
         .select('id, name, gc, location, start_date, end_date, status, project_number')
-        .in('id', projectIds);
+        .in('id', projectIds)
+        .in('status', ['planning', 'active', 'completed']);
 
       if (projectsError) {
         console.error('Error fetching projects:', projectsError);
@@ -161,7 +163,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      console.log('Projects loaded:', projectsData);
+      console.log('Projects loaded (excluding archived):', projectsData);
       setAssignedProjects(projectsData || []);
     } catch (error) {
       console.error('Error in loadEmployeeData:', error);
