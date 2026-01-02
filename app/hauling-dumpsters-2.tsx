@@ -13,8 +13,8 @@ import {
 } from 'react-native';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useAuth } from '@/contexts/AuthContext';
 import { colors } from '@/styles/commonStyles';
+import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 
 type DumpsterType = 'Rubbish' | 'Heavy' | 'Concrete' | 'Scrap' | 'ACM' | 'Lead';
@@ -32,133 +32,76 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 80,
-    paddingBottom: 120,
-  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 32,
-  },
-  backButton: {
-    marginRight: 12,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'android' ? 48 : 60,
+    paddingBottom: 16,
+    backgroundColor: colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '700',
     color: colors.text,
   },
-  section: {
+  content: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  dateTime: {
+    fontSize: 14,
+    color: colors.textSecondary,
     marginBottom: 24,
   },
+  section: {
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    padding: 18,
+    marginBottom: 20,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.06)',
+    elevation: 2,
+  },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '600',
     color: colors.text,
     marginBottom: 12,
   },
-  card: {
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: 18,
-    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.06)',
-    elevation: 2,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginVertical: 12,
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  label: {
-    fontSize: 15,
-    color: colors.textSecondary,
-  },
-  value: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  dumpsterRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  dumpsterRowLast: {
-    borderBottomWidth: 0,
-  },
-  dumpsterName: {
-    fontSize: 15,
-    color: colors.text,
-    fontWeight: '500',
-  },
-  dumpsterQuantity: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  extraWorkBadge: {
-    fontSize: 13,
-    color: colors.primary,
-    marginLeft: 8,
-    fontWeight: '600',
-  },
-  addressContainer: {
-    marginBottom: 0,
-  },
-  addressRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 12,
-  },
-  addressText: {
-    fontSize: 15,
-    color: colors.text,
-    flex: 1,
-    lineHeight: 22,
-  },
-  editButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+  addressInput: {
+    backgroundColor: colors.background,
     borderRadius: 8,
-    backgroundColor: colors.primary,
-  },
-  editButtonText: {
-    fontSize: 14,
-    color: colors.white,
-    fontWeight: '600',
-  },
-  input: {
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 16,
+    padding: 12,
     fontSize: 15,
     color: colors.text,
     minHeight: 80,
     textAlignVertical: 'top',
   },
-  doneButtonContainer: {
-    marginTop: 12,
-    alignItems: 'flex-end',
+  dumpsterItem: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
-  bottomButtonContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+  dumpsterType: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  dumpsterQuantity: {
+    fontSize: 15,
+    color: colors.textSecondary,
+  },
+  extraWorkText: {
+    fontSize: 15,
+    color: colors.primary,
+    marginTop: 4,
+  },
+  footer: {
     backgroundColor: colors.white,
     paddingHorizontal: 20,
     paddingTop: 16,
@@ -172,6 +115,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
   },
+  submitButtonDisabled: {
+    backgroundColor: colors.disabled,
+  },
   submitButtonText: {
     color: colors.white,
     fontSize: 17,
@@ -180,264 +126,223 @@ const styles = StyleSheet.create({
 });
 
 export default function HaulingDumpstersPage2Screen() {
+  const { currentProject, currentEmployee } = useAuth();
   const router = useRouter();
-  const params = useLocalSearchParams();
-  const { currentEmployee, currentProject } = useAuth();
-
   const [loading, setLoading] = useState(false);
-  const [address, setAddress] = useState('');
-  const [isEditingAddress, setIsEditingAddress] = useState(false);
-
-  const haulingCompanyId = params.haulingCompanyId as string;
-  const haulingCompanyName = params.haulingCompanyName as string;
-  const haulingCompanyPhone = params.haulingCompanyPhone as string;
-  const haulingCompanyEmail = params.haulingCompanyEmail as string;
-  const haulingCompanyContact = params.haulingCompanyContact as string;
+  const [projectAddress, setProjectAddress] = useState('');
   
-  const addDumpsters: DumpsterQuantities = JSON.parse(params.addDumpsters as string);
-  const replaceDumpsters: DumpsterQuantities = JSON.parse(params.replaceDumpsters as string);
-
+  const params = useLocalSearchParams();
+  
   useEffect(() => {
-    if (currentProject?.address || currentProject?.location) {
-      setAddress(currentProject.address || currentProject.location || '');
+    if (currentProject?.address) {
+      setProjectAddress(currentProject.address);
     }
   }, [currentProject]);
 
   const getCurrentDate = () => {
     const now = new Date();
-    return now.toLocaleDateString('en-US', {
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
+    return now.toLocaleDateString('en-US', { 
+      month: 'long', 
+      day: 'numeric', 
+      year: 'numeric' 
     });
   };
 
   const getCurrentTime = () => {
     const now = new Date();
-    return now.toLocaleTimeString('en-US', {
-      hour: 'numeric',
+    return now.toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
       minute: '2-digit',
-      hour12: true,
+      hour12: true 
     });
   };
 
   const handleSubmit = async () => {
-    if (!currentEmployee || !currentProject) {
-      Alert.alert('Error', 'Missing employee or project information');
+    // Guard: prevent double submissions
+    if (loading) {
+      console.log('Submit already in progress, ignoring duplicate request');
       return;
     }
-
-    if (!address.trim()) {
-      Alert.alert('Error', 'Please enter a project address');
-      return;
-    }
-
+    
     setLoading(true);
-
+    console.log('Starting hauling request submission...');
+    
     try {
-      // Build add_dumpsters and replace_dumpsters arrays for Edge Function
-      const add_dumpsters = Object.entries(addDumpsters)
-        .filter(([_, data]) => data.quantity > 0)
-        .map(([type, data]) => ({
-          dumpster_type: type,
-          quantity: data.quantity,
-          extra_work_quantity: data.extraWorkAnswer === 'yes' ? data.extraWorkQuantity : 0,
-        }));
+      const haulingCompanyId = params.haulingCompanyId as string;
+      const haulingCompanyName = params.haulingCompanyName as string;
+      const haulingCompanyPhone = params.haulingCompanyPhone as string;
+      const haulingCompanyEmail = params.haulingCompanyEmail as string;
+      
+      const addDumpstersRaw = params.addDumpsters as string;
+      const replaceDumpstersRaw = params.replaceDumpsters as string;
+      
+      const addDumpsters: DumpsterQuantities = addDumpstersRaw 
+        ? JSON.parse(addDumpstersRaw) 
+        : {};
+      const replaceDumpsters: DumpsterQuantities = replaceDumpstersRaw 
+        ? JSON.parse(replaceDumpstersRaw) 
+        : {};
 
-      const replace_dumpsters = Object.entries(replaceDumpsters)
-        .filter(([_, data]) => data.quantity > 0)
-        .map(([type, data]) => ({
-          dumpster_type: type,
-          quantity: data.quantity,
-          extra_work_quantity: data.extraWorkAnswer === 'yes' ? data.extraWorkQuantity : 0,
-        }));
+      const payload = {
+        project_id: currentProject?.id,
+        project_address: projectAddress,
+        hauling_company_id: haulingCompanyId,
+        hauling_company_name: haulingCompanyName,
+        hauling_company_phone: haulingCompanyPhone,
+        hauling_company_email: haulingCompanyEmail,
+        add_dumpsters: addDumpsters,
+        replace_dumpsters: replaceDumpsters,
+      };
 
-      console.log('Submitting hauling request via Edge Function');
-      console.log('Add dumpsters:', add_dumpsters);
-      console.log('Replace dumpsters:', replace_dumpsters);
+      console.log('Invoking submit-hauling-request Edge Function with payload:', payload);
 
-      // Call the Edge Function - it will handle ALL database operations
-      // The Edge Function derives org_id and submitted_by_employee_id from the authenticated user
       const { data: response, error: edgeFunctionError } = await supabase.functions.invoke(
         'submit-hauling-request',
-        {
-          body: {
-            project_id: currentProject.id,
-            project_address: address,
-            hauling_company_id: haulingCompanyId,
-            add_dumpsters: add_dumpsters,
-            replace_dumpsters: replace_dumpsters,
-          },
-        }
+        { body: payload }
       );
 
+      console.log('Edge Function response:', response);
+      console.log('Edge Function error:', edgeFunctionError);
+
       if (edgeFunctionError) {
-        console.error('Edge function error:', edgeFunctionError);
-        Alert.alert('Error', `Failed to submit hauling request: ${edgeFunctionError.message}`);
-        setLoading(false);
+        console.error('Edge Function returned error:', edgeFunctionError);
+        Alert.alert(
+          'Submission Error',
+          `Failed to submit hauling request: ${edgeFunctionError.message}`,
+          [{ text: 'OK' }]
+        );
         return;
       }
 
-      console.log('Edge function response:', response);
-
       if (response?.success) {
-        Alert.alert('Success', 'Hauling request submitted successfully', [
-          {
-            text: 'OK',
-            onPress: () => {
-              // Navigate back to Project Dashboard after successful submission
-              router.push('/(tabs)/(home)');
+        console.log('Hauling request submitted successfully');
+        Alert.alert(
+          'Success',
+          'Hauling request submitted successfully!',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                console.log('Navigating back to dashboard');
+                router.replace('/(tabs)/(home)');
+              },
             },
-          },
-        ]);
+          ]
+        );
       } else {
-        Alert.alert('Warning', 'Hauling request may not have been sent. Please check with your manager.', [
-          {
-            text: 'OK',
-            onPress: () => {
-              router.push('/(tabs)/(home)');
+        console.warn('Hauling request submission unclear:', response);
+        Alert.alert(
+          'Warning',
+          response?.message || 'Request submitted but status unclear.',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                console.log('Navigating back to dashboard after warning');
+                router.replace('/(tabs)/(home)');
+              },
             },
-          },
-        ]);
+          ]
+        );
       }
-    } catch (error) {
-      console.error('Exception submitting hauling request:', error);
-      Alert.alert('Error', 'An unexpected error occurred');
+    } catch (error: any) {
+      console.error('Exception during hauling request submission:', error);
+      Alert.alert(
+        'Error',
+        `An unexpected error occurred: ${error?.message || 'Unknown error'}`,
+        [{ text: 'OK' }]
+      );
+    } finally {
+      // Always reset loading state, no matter what happened
+      console.log('Resetting loading state');
       setLoading(false);
     }
   };
 
   const renderDumpsterList = (dumpsters: DumpsterQuantities, title: string) => {
-    const dumpsterEntries = Object.entries(dumpsters).filter(([_, data]) => data.quantity > 0);
-    
-    if (dumpsterEntries.length === 0) return null;
+    const entries = Object.entries(dumpsters).filter(
+      ([_, data]) => data.quantity > 0
+    );
+
+    if (entries.length === 0) return null;
 
     return (
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{title}</Text>
-        <View style={styles.card}>
-          {dumpsterEntries.map(([type, data], index) => (
-            <View 
-              key={type} 
-              style={[
-                styles.dumpsterRow,
-                index === dumpsterEntries.length - 1 && styles.dumpsterRowLast,
-              ]}
-            >
-              <Text style={styles.dumpsterName}>{type}</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={styles.dumpsterQuantity}>{data.quantity}</Text>
-                {data.extraWorkAnswer === 'yes' && (
-                  <Text style={styles.extraWorkBadge}>
-                    ({data.extraWorkQuantity} extra work)
-                  </Text>
-                )}
-              </View>
-            </View>
-          ))}
-        </View>
+        {entries.map(([type, data], index) => (
+          <View 
+            key={type} 
+            style={[
+              styles.dumpsterItem,
+              index === entries.length - 1 && { borderBottomWidth: 0 }
+            ]}
+          >
+            <Text style={styles.dumpsterType}>{type}</Text>
+            <Text style={styles.dumpsterQuantity}>
+              Quantity: {data.quantity}
+            </Text>
+            {data.extraWorkAnswer === 'yes' && data.extraWorkQuantity > 0 && (
+              <Text style={styles.extraWorkText}>
+                Extra Work: {data.extraWorkQuantity}
+              </Text>
+            )}
+          </View>
+        ))}
       </View>
     );
   };
 
   return (
     <View style={styles.container}>
-      <ScrollView 
-        style={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
-            <IconSymbol
-              ios_icon_name="chevron.left"
-              android_material_icon_name="arrow-back"
-              size={24}
-              color={colors.text}
-            />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Summary</Text>
-        </View>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()}>
+          <IconSymbol 
+            ios_icon_name="chevron.left" 
+            android_material_icon_name="arrow-back"
+            size={24} 
+            color={colors.text} 
+          />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Summary</Text>
+        <View style={{ width: 24 }} />
+      </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Request Details</Text>
-          <View style={styles.card}>
-            <View style={styles.row}>
-              <Text style={styles.label}>Hauling Company</Text>
-              <Text style={styles.value}>{haulingCompanyName}</Text>
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.row}>
-              <Text style={styles.label}>Submitted By</Text>
-              <Text style={styles.value}>
-                {currentEmployee?.first_name} {currentEmployee?.last_name}
-              </Text>
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.row}>
-              <Text style={styles.label}>Date</Text>
-              <Text style={styles.value}>{getCurrentDate()}</Text>
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.row}>
-              <Text style={styles.label}>Time</Text>
-              <Text style={styles.value}>{getCurrentTime()}</Text>
-            </View>
-          </View>
-        </View>
-
-        {renderDumpsterList(addDumpsters, 'Add Dumpsters')}
-        {renderDumpsterList(replaceDumpsters, 'Replace Dumpsters')}
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <Text style={styles.dateTime}>
+          {getCurrentDate()} • {getCurrentTime()}
+        </Text>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Project Address</Text>
-          <View style={styles.card}>
-            {!isEditingAddress ? (
-              <View style={styles.addressContainer}>
-                <View style={styles.addressRow}>
-                  <Text style={styles.addressText}>{address || 'No address set'}</Text>
-                  <TouchableOpacity
-                    style={styles.editButton}
-                    onPress={() => setIsEditingAddress(true)}
-                  >
-                    <Text style={styles.editButtonText}>Edit</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ) : (
-              <View style={styles.addressContainer}>
-                <TextInput
-                  style={styles.input}
-                  value={address}
-                  onChangeText={setAddress}
-                  placeholder="Enter project address"
-                  placeholderTextColor={colors.textSecondary}
-                  multiline
-                />
-                <View style={styles.doneButtonContainer}>
-                  <TouchableOpacity
-                    style={styles.editButton}
-                    onPress={() => setIsEditingAddress(false)}
-                  >
-                    <Text style={styles.editButtonText}>Done</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-          </View>
+          <TextInput
+            style={styles.addressInput}
+            value={projectAddress}
+            onChangeText={setProjectAddress}
+            placeholder="Enter project address"
+            placeholderTextColor={colors.textSecondary}
+            multiline
+          />
         </View>
+
+        {renderDumpsterList(
+          params.addDumpsters ? JSON.parse(params.addDumpsters as string) : {},
+          'Add Dumpsters'
+        )}
+
+        {renderDumpsterList(
+          params.replaceDumpsters ? JSON.parse(params.replaceDumpsters as string) : {},
+          'Replace Dumpsters'
+        )}
       </ScrollView>
 
-      <View style={styles.bottomButtonContainer}>
+      <View style={styles.footer}>
         <TouchableOpacity
-          style={styles.submitButton}
+          style={[styles.submitButton, loading && styles.submitButtonDisabled]}
           onPress={handleSubmit}
           disabled={loading}
         >
           {loading ? (
-            <ActivityIndicator color={colors.white} />
+            <ActivityIndicator color="#fff" />
           ) : (
             <Text style={styles.submitButtonText}>SUBMIT</Text>
           )}
