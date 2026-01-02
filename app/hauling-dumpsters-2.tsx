@@ -1,9 +1,5 @@
 
-import React, { useState } from 'react';
-import { IconSymbol } from '@/components/IconSymbol';
-import { useAuth } from '@/contexts/AuthContext';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { colors } from '@/styles/commonStyles';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,9 +8,14 @@ import {
   TouchableOpacity,
   Platform,
   TextInput,
-  Alert,
-  Modal,
+  ActivityIndicator,
 } from 'react-native';
+import { IconSymbol } from '@/components/IconSymbol';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useAuth } from '@/contexts/AuthContext';
+import { colors } from '@/styles/commonStyles';
+
+type DumpsterType = 'Rubbish' | 'Heavy' | 'Concrete' | 'Scrap' | 'ACM' | 'Lead';
 
 interface DumpsterData {
   quantity: number;
@@ -22,175 +23,112 @@ interface DumpsterData {
   extraWorkQuantity: number;
 }
 
-type DumpsterQuantities = Record<string, DumpsterData>;
+type DumpsterQuantities = Record<DumpsterType, DumpsterData>;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
   },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 120,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'ios' ? 60 : 20,
-    paddingBottom: 15,
-    backgroundColor: colors.background,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    marginBottom: 24,
   },
   backButton: {
-    marginRight: 15,
+    marginRight: 12,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: '600',
+    fontSize: 24,
+    fontWeight: '700',
     color: colors.text,
   },
-  content: {
-    flex: 1,
-    padding: 20,
+  section: {
+    marginBottom: 24,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 16,
-  },
-  summaryCard: {
-    backgroundColor: colors.white,
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  summaryLabel: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  summaryValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  dumpsterItem: {
     marginBottom: 12,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
-  dumpsterName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  dumpsterDetail: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  addressSection: {
-    backgroundColor: colors.white,
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  addressHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  addressLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  editButton: {
-    padding: 4,
-  },
-  addressText: {
-    fontSize: 14,
-    color: colors.text,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
+  card: {
     backgroundColor: colors.white,
     borderRadius: 12,
-    padding: 20,
-    width: '85%',
+    padding: 16,
+    marginBottom: 12,
   },
-  modalTitle: {
-    fontSize: 18,
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  label: {
+    fontSize: 15,
+    color: colors.textSecondary,
+  },
+  value: {
+    fontSize: 15,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 16,
+  },
+  dumpsterRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  dumpsterName: {
+    fontSize: 15,
+    color: colors.text,
+  },
+  dumpsterQuantity: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  extraWorkBadge: {
+    fontSize: 13,
+    color: colors.primary,
+    marginLeft: 8,
   },
   input: {
+    backgroundColor: colors.white,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 14,
+    padding: 16,
+    fontSize: 15,
     color: colors.text,
-    marginBottom: 16,
+    minHeight: 50,
   },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  modalButton: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  cancelButton: {
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  confirmButton: {
-    backgroundColor: colors.primary,
-  },
-  modalButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  cancelButtonText: {
-    color: colors.text,
-  },
-  confirmButtonText: {
-    color: colors.white,
-  },
-  footer: {
-    padding: 20,
-    backgroundColor: colors.background,
+  bottomButtonContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: colors.white,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
   submitButton: {
     backgroundColor: colors.primary,
-    padding: 16,
-    borderRadius: 8,
+    paddingVertical: 16,
+    borderRadius: 12,
     alignItems: 'center',
   },
   submitButtonText: {
     color: colors.white,
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
   },
 });
@@ -200,183 +138,147 @@ export default function HaulingDumpstersPage2Screen() {
   const params = useLocalSearchParams();
   const { currentEmployee, currentProject } = useAuth();
 
+  const [loading, setLoading] = useState(false);
+  const [address, setAddress] = useState('');
+
   const haulingCompany = params.haulingCompany as string;
-  const mode = params.mode as 'add' | 'replace';
-  const dumpsters: DumpsterQuantities = JSON.parse(params.dumpsters as string);
+  const addDumpsters: DumpsterQuantities = JSON.parse(params.addDumpsters as string);
+  const replaceDumpsters: DumpsterQuantities = JSON.parse(params.replaceDumpsters as string);
 
-  const [address, setAddress] = useState(getDefaultAddress());
-  const [editingAddress, setEditingAddress] = useState(false);
-  const [tempAddress, setTempAddress] = useState(address);
-
-  function getDefaultAddress(): string {
+  useEffect(() => {
     if (currentProject?.address) {
-      return currentProject.address;
+      setAddress(currentProject.address);
     }
-    return 'Project Address';
-  }
+  }, [currentProject]);
 
-  function getUserName(): string {
-    if (currentEmployee?.first_name && currentEmployee?.last_name) {
-      return `${currentEmployee.first_name} ${currentEmployee.last_name}`;
-    }
-    return 'User Name';
-  }
-
-  function getCurrentTime(): string {
+  const getCurrentDate = () => {
     const now = new Date();
-    return now.toLocaleString('en-US', {
+    return now.toLocaleDateString('en-US', {
       month: 'long',
       day: 'numeric',
       year: 'numeric',
+    });
+  };
+
+  const getCurrentTime = () => {
+    const now = new Date();
+    return now.toLocaleTimeString('en-US', {
       hour: 'numeric',
       minute: '2-digit',
       hour12: true,
     });
-  }
-
-  const handleEditAddress = () => {
-    setTempAddress(address);
-    setEditingAddress(true);
   };
 
-  const handleConfirmAddress = () => {
-    setAddress(tempAddress);
-    setEditingAddress(false);
+  const handleSubmit = async () => {
+    setLoading(true);
+    // TODO: Backend Integration - Submit hauling dumpster request to backend API
+    setTimeout(() => {
+      setLoading(false);
+      router.push('/(tabs)/(home)');
+    }, 1000);
   };
 
-  const handleCancelAddress = () => {
-    setTempAddress(address);
-    setEditingAddress(false);
-  };
+  const renderDumpsterList = (dumpsters: DumpsterQuantities, title: string) => {
+    const hasAnyQuantity = Object.values(dumpsters).some((d) => d.quantity > 0);
+    
+    if (!hasAnyQuantity) return null;
 
-  const handleSubmit = () => {
-    Alert.alert('Success', 'Hauling dumpster request submitted!', [
-      {
-        text: 'OK',
-        onPress: () => router.push('/(tabs)/(home)'),
-      },
-    ]);
+    return (
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+        <View style={styles.card}>
+          {Object.entries(dumpsters).map(([type, data]) => {
+            if (data.quantity === 0) return null;
+            return (
+              <View key={type} style={styles.dumpsterRow}>
+                <Text style={styles.dumpsterName}>{type}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={styles.dumpsterQuantity}>{data.quantity}</Text>
+                  {data.extraWorkAnswer === 'yes' && (
+                    <Text style={styles.extraWorkBadge}>
+                      ({data.extraWorkQuantity} extra work)
+                    </Text>
+                  )}
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      </View>
+    );
   };
-
-  const activeDumpsters = Object.entries(dumpsters).filter(([_, data]) => data.quantity > 0);
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <IconSymbol
-            ios_icon_name="chevron.left"
-            android_material_icon_name="arrow-back"
-            size={24}
-            color={colors.primary}
-          />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Summary</Text>
-      </View>
-
-      <ScrollView style={styles.content}>
-        <Text style={styles.sectionTitle}>Request Details</Text>
-
-        <View style={styles.summaryCard}>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Hauling Company</Text>
-            <Text style={styles.summaryValue}>{haulingCompany}</Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Request Type</Text>
-            <Text style={styles.summaryValue}>
-              {mode === 'add' ? 'Add Dumpsters' : 'Replace Dumpsters'}
-            </Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Submitted By</Text>
-            <Text style={styles.summaryValue}>{getUserName()}</Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Submission Time</Text>
-            <Text style={styles.summaryValue}>{getCurrentTime()}</Text>
-          </View>
+      <ScrollView style={styles.scrollContent}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <IconSymbol
+              ios_icon_name="chevron.left"
+              android_material_icon_name="arrow_back"
+              size={24}
+              color={colors.primary}
+            />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Summary</Text>
         </View>
 
-        <Text style={styles.sectionTitle}>Dumpsters</Text>
-
-        <View style={styles.summaryCard}>
-          {activeDumpsters.map(([type, data], index) => (
-            <View
-              key={type}
-              style={[
-                styles.dumpsterItem,
-                index === activeDumpsters.length - 1 && { borderBottomWidth: 0 },
-              ]}
-            >
-              <Text style={styles.dumpsterName}>{type}</Text>
-              <Text style={styles.dumpsterDetail}>Total quantity: {data.quantity}</Text>
-              {data.extraWorkAnswer === 'yes' && (
-                <Text style={styles.dumpsterDetail}>
-                  Extra work quantity: {data.extraWorkQuantity}
-                </Text>
-              )}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Request Details</Text>
+          <View style={styles.card}>
+            <View style={styles.row}>
+              <Text style={styles.label}>Hauling Company</Text>
+              <Text style={styles.value}>{haulingCompany}</Text>
             </View>
-          ))}
+            <View style={styles.row}>
+              <Text style={styles.label}>Submitted By</Text>
+              <Text style={styles.value}>
+                {currentEmployee?.first_name} {currentEmployee?.last_name}
+              </Text>
+            </View>
+            <View style={styles.row}>
+              <Text style={styles.label}>Date</Text>
+              <Text style={styles.value}>{getCurrentDate()}</Text>
+            </View>
+            <View style={[styles.row, { marginBottom: 0 }]}>
+              <Text style={styles.label}>Time</Text>
+              <Text style={styles.value}>{getCurrentTime()}</Text>
+            </View>
+          </View>
         </View>
 
-        <Text style={styles.sectionTitle}>Location</Text>
+        {renderDumpsterList(addDumpsters, 'Add Dumpsters')}
+        {renderDumpsterList(replaceDumpsters, 'Replace Dumpsters')}
 
-        <View style={styles.addressSection}>
-          <View style={styles.addressHeader}>
-            <Text style={styles.addressLabel}>Address</Text>
-            <TouchableOpacity style={styles.editButton} onPress={handleEditAddress}>
-              <IconSymbol
-                ios_icon_name="pencil"
-                android_material_icon_name="edit"
-                size={20}
-                color={colors.primary}
-              />
-            </TouchableOpacity>
-          </View>
-          <Text style={styles.addressText}>{address}</Text>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Project Address</Text>
+          <TextInput
+            style={styles.input}
+            value={address}
+            onChangeText={setAddress}
+            placeholder="Enter project address"
+            placeholderTextColor={colors.textSecondary}
+            multiline
+          />
         </View>
       </ScrollView>
 
-      <View style={styles.footer}>
-        <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-          <Text style={styles.submitButtonText}>SUBMIT</Text>
+      <View style={styles.bottomButtonContainer}>
+        <TouchableOpacity
+          style={styles.submitButton}
+          onPress={handleSubmit}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color={colors.white} />
+          ) : (
+            <Text style={styles.submitButtonText}>SUBMIT</Text>
+          )}
         </TouchableOpacity>
       </View>
-
-      <Modal
-        visible={editingAddress}
-        transparent
-        animationType="fade"
-        onRequestClose={handleCancelAddress}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Edit Address</Text>
-            <TextInput
-              style={styles.input}
-              value={tempAddress}
-              onChangeText={setTempAddress}
-              placeholder="Enter address"
-              multiline
-            />
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={handleCancelAddress}
-              >
-                <Text style={[styles.modalButtonText, styles.cancelButtonText]}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.confirmButton]}
-                onPress={handleConfirmAddress}
-              >
-                <Text style={[styles.modalButtonText, styles.confirmButtonText]}>Confirm</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }

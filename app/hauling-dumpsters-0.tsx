@@ -1,6 +1,5 @@
 
 import React, { useState } from 'react';
-import { IconSymbol } from '@/components/IconSymbol';
 import {
   View,
   Text,
@@ -8,10 +7,10 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
-  Modal,
 } from 'react-native';
-import { colors } from '@/styles/commonStyles';
+import { IconSymbol } from '@/components/IconSymbol';
 import { useRouter } from 'expo-router';
+import { colors } from '@/styles/commonStyles';
 
 const HAULING_COMPANIES = [
   'ABC Hauling',
@@ -24,27 +23,23 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 120,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'ios' ? 60 : 20,
-    paddingBottom: 15,
-    backgroundColor: colors.background,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    marginBottom: 24,
   },
   backButton: {
-    marginRight: 15,
+    marginRight: 12,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: '600',
+    fontSize: 24,
+    fontWeight: '700',
     color: colors.text,
-  },
-  content: {
-    flex: 1,
-    padding: 20,
   },
   label: {
     fontSize: 16,
@@ -52,68 +47,48 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 12,
   },
-  dropdownButton: {
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    padding: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  dropdownButtonText: {
-    fontSize: 16,
-    color: colors.text,
-  },
-  dropdownPlaceholder: {
-    fontSize: 16,
-    color: colors.textSecondary,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
+  dropdown: {
     backgroundColor: colors.white,
     borderRadius: 12,
-    width: '80%',
-    maxHeight: '60%',
-  },
-  modalHeader: {
+    borderWidth: 1,
+    borderColor: colors.border,
     padding: 16,
+  },
+  dropdownItem: {
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
+  dropdownItemLast: {
+    borderBottomWidth: 0,
   },
-  optionItem: {
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  optionText: {
+  dropdownItemText: {
     fontSize: 16,
     color: colors.text,
   },
-  selectedOption: {
+  dropdownItemSelected: {
     backgroundColor: colors.primaryLight,
   },
-  footer: {
-    padding: 20,
-    backgroundColor: colors.background,
+  selectedText: {
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  bottomButtonContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: colors.white,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
   nextButton: {
     backgroundColor: colors.primary,
-    padding: 16,
-    borderRadius: 8,
+    paddingVertical: 16,
+    borderRadius: 12,
     alignItems: 'center',
   },
   nextButtonDisabled: {
@@ -121,15 +96,14 @@ const styles = StyleSheet.create({
   },
   nextButtonText: {
     color: colors.white,
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
   },
 });
 
 export default function HaulingDumpstersPage0Screen() {
   const router = useRouter();
-  const [selectedCompany, setSelectedCompany] = useState<string>('');
-  const [showDropdown, setShowDropdown] = useState(false);
+  const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
 
   const handleNext = () => {
     if (!selectedCompany) return;
@@ -142,46 +116,48 @@ export default function HaulingDumpstersPage0Screen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <IconSymbol
-            ios_icon_name="chevron.left"
-            android_material_icon_name="arrow-back"
-            size={24}
-            color={colors.primary}
-          />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Hauling Dumpsters</Text>
-      </View>
-
-      <ScrollView style={styles.content}>
-        <Text style={styles.label}>Select Hauling Company</Text>
-        <TouchableOpacity
-          style={styles.dropdownButton}
-          onPress={() => setShowDropdown(true)}
-        >
-          <Text
-            style={
-              selectedCompany
-                ? styles.dropdownButtonText
-                : styles.dropdownPlaceholder
-            }
+      <ScrollView style={styles.scrollContent}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
           >
-            {selectedCompany || 'Choose a company...'}
-          </Text>
-          <IconSymbol
-            ios_icon_name="chevron.down"
-            android_material_icon_name="arrow-drop-down"
-            size={20}
-            color={colors.textSecondary}
-          />
-        </TouchableOpacity>
+            <IconSymbol
+              ios_icon_name="chevron.left"
+              android_material_icon_name="arrow_back"
+              size={24}
+              color={colors.primary}
+            />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Hauling Dumpsters</Text>
+        </View>
+
+        <Text style={styles.label}>Select Hauling Company</Text>
+        <View style={styles.dropdown}>
+          {HAULING_COMPANIES.map((company, index) => (
+            <TouchableOpacity
+              key={company}
+              style={[
+                styles.dropdownItem,
+                index === HAULING_COMPANIES.length - 1 && styles.dropdownItemLast,
+                selectedCompany === company && styles.dropdownItemSelected,
+              ]}
+              onPress={() => setSelectedCompany(company)}
+            >
+              <Text
+                style={[
+                  styles.dropdownItemText,
+                  selectedCompany === company && styles.selectedText,
+                ]}
+              >
+                {company}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={styles.bottomButtonContainer}>
         <TouchableOpacity
           style={[
             styles.nextButton,
@@ -193,42 +169,6 @@ export default function HaulingDumpstersPage0Screen() {
           <Text style={styles.nextButtonText}>NEXT</Text>
         </TouchableOpacity>
       </View>
-
-      <Modal
-        visible={showDropdown}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowDropdown(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowDropdown(false)}
-        >
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Hauling Company</Text>
-            </View>
-            <ScrollView>
-              {HAULING_COMPANIES.map((company) => (
-                <TouchableOpacity
-                  key={company}
-                  style={[
-                    styles.optionItem,
-                    selectedCompany === company && styles.selectedOption,
-                  ]}
-                  onPress={() => {
-                    setSelectedCompany(company);
-                    setShowDropdown(false);
-                  }}
-                >
-                  <Text style={styles.optionText}>{company}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </TouchableOpacity>
-      </Modal>
     </View>
   );
 }
