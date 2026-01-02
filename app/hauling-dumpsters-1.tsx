@@ -31,7 +31,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 60,
     paddingBottom: 120,
   },
   header: {
@@ -194,7 +194,12 @@ const createEmptyDumpsterData = (): DumpsterQuantities => {
 export default function HaulingDumpstersPage1Screen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const haulingCompany = params.haulingCompany as string;
+  
+  const haulingCompanyId = params.haulingCompanyId as string;
+  const haulingCompanyName = params.haulingCompanyName as string;
+  const haulingCompanyPhone = params.haulingCompanyPhone as string;
+  const haulingCompanyEmail = params.haulingCompanyEmail as string;
+  const haulingCompanyContact = params.haulingCompanyContact as string;
 
   const [activeTab, setActiveTab] = useState<'add' | 'replace'>('add');
   const [addDumpsters, setAddDumpsters] = useState<DumpsterQuantities>(createEmptyDumpsterData());
@@ -247,7 +252,11 @@ export default function HaulingDumpstersPage1Screen() {
     router.push({
       pathname: '/hauling-dumpsters-2',
       params: {
-        haulingCompany,
+        haulingCompanyId,
+        haulingCompanyName,
+        haulingCompanyPhone,
+        haulingCompanyEmail,
+        haulingCompanyContact,
         addDumpsters: JSON.stringify(addDumpsters),
         replaceDumpsters: JSON.stringify(replaceDumpsters),
       },
@@ -264,9 +273,9 @@ export default function HaulingDumpstersPage1Screen() {
           >
             <IconSymbol
               ios_icon_name="chevron.left"
-              android_material_icon_name="arrow_back"
+              android_material_icon_name="arrow-back"
               size={24}
-              color={colors.primary}
+              color={colors.text}
             />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Select Dumpsters</Text>

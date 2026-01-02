@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,16 +7,22 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useRouter } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 
-const HAULING_COMPANIES = [
-  'ABC Hauling',
-  'Chicago Waste Co.',
-  'Demo Transport',
-];
+interface HaulingCompany {
+  id: string;
+  name: string;
+  phone_number: string | null;
+  email: string | null;
+  contact_name: string | null;
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -25,7 +31,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 60,
     paddingBottom: 120,
   },
   header: {
@@ -73,6 +79,17 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: '600',
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 20,
+  },
   bottomButtonContainer: {
     position: 'absolute',
     bottom: 0,
@@ -103,16 +120,70 @@ const styles = StyleSheet.create({
 
 export default function HaulingDumpstersPage0Screen() {
   const router = useRouter();
-  const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
+  const { currentEmployee } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [companies, setCompanies] = useState<HaulingCompany[]>([]);
+  const [selectedCompany, setSelectedCompany] = useState<HaulingCompany | null>(null);
+
+  useEffect(() => {
+    loadHaulingCompanies();
+  }, [currentEmployee]);
+
+  const loadHaulingCompanies = async () => {
+    if (!currentEmployee?.org_id) {
+      console.log('No org_id available');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      // TODO: Backend Integration - Fetch hauling companies from public.hauling_companies
+      const { data, error } = await supabase
+        .from('hauling_companies')
+        .select('id, name, phone_number, email, contact_name')
+        .eq('org_id', currentEmployee.org_id)
+        .eq('is_active', true)
+        .order('name');
+
+      if (error) {
+        console.error('Error fetching hauling companies:', error);
+        Alert.alert('Error', 'Failed to load hauling companies');
+        setCompanies([]);
+      } else {
+        console.log('Loaded hauling companies:', data);
+        setCompanies(data || []);
+      }
+    } catch (error) {
+      console.error('Exception loading hauling companies:', error);
+      Alert.alert('Error', 'An unexpected error occurred');
+      setCompanies([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleNext = () => {
     if (!selectedCompany) return;
     
     router.push({
       pathname: '/hauling-dumpsters-1',
-      params: { haulingCompany: selectedCompany },
+      params: {
+        haulingCompanyId: selectedCompany.id,
+        haulingCompanyName: selectedCompany.name,
+        haulingCompanyPhone: selectedCompany.phone_number || '',
+        haulingCompanyEmail: selectedCompany.email || '',
+        haulingCompanyContact: selectedCompany.contact_name || '',
+      },
     });
   };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -124,37 +195,43 @@ export default function HaulingDumpstersPage0Screen() {
           >
             <IconSymbol
               ios_icon_name="chevron.left"
-              android_material_icon_name="arrow_back"
+              android_material_icon_name="arrow-back"
               size={24}
-              color={colors.primary}
+              color={colors.text}
             />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Hauling Dumpsters</Text>
         </View>
 
         <Text style={styles.label}>Select Hauling Company</Text>
-        <View style={styles.dropdown}>
-          {HAULING_COMPANIES.map((company, index) => (
-            <TouchableOpacity
-              key={company}
-              style={[
-                styles.dropdownItem,
-                index === HAULING_COMPANIES.length - 1 && styles.dropdownItemLast,
-                selectedCompany === company && styles.dropdownItemSelected,
-              ]}
-              onPress={() => setSelectedCompany(company)}
-            >
-              <Text
+        {companies.length === 0 ? (
+          <Text style={styles.emptyText}>
+            No active hauling companies available. Please contact your administrator.
+          </Text>
+        ) : (
+          <View style={styles.dropdown}>
+            {companies.map((company, index) => (
+              <TouchableOpacity
+                key={company.id}
                 style={[
-                  styles.dropdownItemText,
-                  selectedCompany === company && styles.selectedText,
+                  styles.dropdownItem,
+                  index === companies.length - 1 && styles.dropdownItemLast,
+                  selectedCompany?.id === company.id && styles.dropdownItemSelected,
                 ]}
+                onPress={() => setSelectedCompany(company)}
               >
-                {company}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+                <Text
+                  style={[
+                    styles.dropdownItemText,
+                    selectedCompany?.id === company.id && styles.selectedText,
+                  ]}
+                >
+                  {company.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
       </ScrollView>
 
       <View style={styles.bottomButtonContainer}>

@@ -9,11 +9,13 @@ import {
   Platform,
   TextInput,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { colors } from '@/styles/commonStyles';
+import { supabase } from '@/lib/supabase';
 
 type DumpsterType = 'Rubbish' | 'Heavy' | 'Concrete' | 'Scrap' | 'ACM' | 'Lead';
 
@@ -32,7 +34,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 60,
     paddingBottom: 120,
   },
   header: {
@@ -98,6 +100,32 @@ const styles = StyleSheet.create({
     color: colors.primary,
     marginLeft: 8,
   },
+  addressContainer: {
+    marginBottom: 12,
+  },
+  addressRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  addressText: {
+    fontSize: 15,
+    color: colors.text,
+    flex: 1,
+  },
+  editButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  editButtonText: {
+    fontSize: 14,
+    color: colors.primary,
+    fontWeight: '600',
+  },
   input: {
     backgroundColor: colors.white,
     borderRadius: 12,
@@ -140,14 +168,20 @@ export default function HaulingDumpstersPage2Screen() {
 
   const [loading, setLoading] = useState(false);
   const [address, setAddress] = useState('');
+  const [isEditingAddress, setIsEditingAddress] = useState(false);
 
-  const haulingCompany = params.haulingCompany as string;
+  const haulingCompanyId = params.haulingCompanyId as string;
+  const haulingCompanyName = params.haulingCompanyName as string;
+  const haulingCompanyPhone = params.haulingCompanyPhone as string;
+  const haulingCompanyEmail = params.haulingCompanyEmail as string;
+  const haulingCompanyContact = params.haulingCompanyContact as string;
+  
   const addDumpsters: DumpsterQuantities = JSON.parse(params.addDumpsters as string);
   const replaceDumpsters: DumpsterQuantities = JSON.parse(params.replaceDumpsters as string);
 
   useEffect(() => {
-    if (currentProject?.address) {
-      setAddress(currentProject.address);
+    if (currentProject?.address || currentProject?.location) {
+      setAddress(currentProject.address || currentProject.location || '');
     }
   }, [currentProject]);
 
@@ -170,12 +204,163 @@ export default function HaulingDumpstersPage2Screen() {
   };
 
   const handleSubmit = async () => {
+    if (!currentEmployee || !currentProject) {
+      Alert.alert('Error', 'Missing employee or project information');
+      return;
+    }
+
+    if (!address.trim()) {
+      Alert.alert('Error', 'Please enter a project address');
+      return;
+    }
+
     setLoading(true);
-    // TODO: Backend Integration - Submit hauling dumpster request to backend API
-    setTimeout(() => {
-      setLoading(false);
+
+    try {
+      // TODO: Backend Integration - Build request_payload from Add/Replace selections
+      const requestPayload = {
+        add: Object.entries(addDumpsters)
+          .filter(([_, data]) => data.quantity > 0)
+          .map(([type, data]) => ({
+            dumpster_type: type,
+            quantity: data.quantity,
+            extra_work_quantity: data.extraWorkAnswer === 'yes' ? data.extraWorkQuantity : 0,
+          })),
+        replace: Object.entries(replaceDumpsters)
+          .filter(([_, data]) => data.quantity > 0)
+          .map(([type, data]) => ({
+            dumpster_type: type,
+            quantity: data.quantity,
+            extra_work_quantity: data.extraWorkAnswer === 'yes' ? data.extraWorkQuantity : 0,
+          })),
+      };
+
+      console.log('Creating hauling request with payload:', requestPayload);
+
+      // TODO: Backend Integration - Insert into public.hauling_requests
+      const { data: haulingRequest, error: insertError } = await supabase
+        .from('hauling_requests')
+        .insert({
+          org_id: currentEmployee.org_id,
+          project_id: currentProject.id,
+          submitted_by_employee_id: currentEmployee.id,
+          submitted_time: new Date().toISOString(),
+          project_address: address,
+          request_payload: requestPayload,
+          status: 'pending',
+          revision: 1,
+          hauling_company_id: haulingCompanyId,
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error('Error inserting hauling request:', insertError);
+        Alert.alert('Error', 'Failed to create hauling request');
+        setLoading(false);
+        return;
+      }
+
+      console.log('Hauling request created:', haulingRequest);
+
+      // TODO: Backend Integration - Insert child rows into public.hauling_request_items
+      const itemsToInsert = [];
+      
+      // Process Add dumpsters
+      for (const [type, data] of Object.entries(addDumpsters)) {
+        if (data.quantity > 0) {
+          itemsToInsert.push({
+            hauling_request_id: haulingRequest.id,
+            org_id: currentEmployee.org_id,
+            project_id: currentProject.id,
+            dumpster_type: type,
+            quantity_total: data.quantity,
+            quantity_extra_work: data.extraWorkAnswer === 'yes' ? data.extraWorkQuantity : 0,
+            quantity_normal_work: data.quantity - (data.extraWorkAnswer === 'yes' ? data.extraWorkQuantity : 0),
+          });
+        }
+      }
+
+      // Process Replace dumpsters
+      for (const [type, data] of Object.entries(replaceDumpsters)) {
+        if (data.quantity > 0) {
+          itemsToInsert.push({
+            hauling_request_id: haulingRequest.id,
+            org_id: currentEmployee.org_id,
+            project_id: currentProject.id,
+            dumpster_type: type,
+            quantity_total: data.quantity,
+            quantity_extra_work: data.extraWorkAnswer === 'yes' ? data.extraWorkQuantity : 0,
+            quantity_normal_work: data.quantity - (data.extraWorkAnswer === 'yes' ? data.extraWorkQuantity : 0),
+          });
+        }
+      }
+
+      if (itemsToInsert.length > 0) {
+        const { error: itemsError } = await supabase
+          .from('hauling_request_items')
+          .insert(itemsToInsert);
+
+        if (itemsError) {
+          console.error('Error inserting hauling request items:', itemsError);
+          // Continue anyway - items are for reporting, not critical
+        } else {
+          console.log('Hauling request items created:', itemsToInsert.length);
+        }
+      }
+
+      // TODO: Backend Integration - Invoke submit-hauling-request edge function
+      const edgeFunctionPayload = {
+        hauling_request_id: haulingRequest.id,
+        project_name: currentProject.name,
+        project_address: address,
+        submitting_user_name: `${currentEmployee.first_name} ${currentEmployee.last_name}`,
+        submission_timestamp: new Date().toISOString(),
+        request_payload: requestPayload,
+        hauling_company_id: haulingCompanyId,
+        hauling_company_name: haulingCompanyName,
+        hauling_company_phone_number: haulingCompanyPhone,
+        hauling_company_email: haulingCompanyEmail,
+        hauling_company_contact_name: haulingCompanyContact,
+      };
+
+      console.log('Calling submit-hauling-request edge function with:', edgeFunctionPayload);
+
+      const { data: edgeFunctionResponse, error: edgeFunctionError } = await supabase.functions.invoke(
+        'submit-hauling-request',
+        {
+          body: edgeFunctionPayload,
+        }
+      );
+
+      if (edgeFunctionError) {
+        console.error('Edge function error:', edgeFunctionError);
+        // Update status to failed
+        await supabase
+          .from('hauling_requests')
+          .update({ status: 'failed' })
+          .eq('id', haulingRequest.id);
+        
+        Alert.alert('Warning', 'Hauling request created but notification failed. Please contact support.');
+      } else {
+        console.log('Edge function response:', edgeFunctionResponse);
+        // Update status to sent
+        await supabase
+          .from('hauling_requests')
+          .update({ status: 'sent' })
+          .eq('id', haulingRequest.id);
+        
+        Alert.alert('Success', 'Hauling request submitted successfully');
+      }
+
+      // Navigate back to home
       router.push('/(tabs)/(home)');
-    }, 1000);
+    } catch (error) {
+      console.error('Exception submitting hauling request:', error);
+      Alert.alert('Error', 'An unexpected error occurred');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const renderDumpsterList = (dumpsters: DumpsterQuantities, title: string) => {
@@ -218,9 +403,9 @@ export default function HaulingDumpstersPage2Screen() {
           >
             <IconSymbol
               ios_icon_name="chevron.left"
-              android_material_icon_name="arrow_back"
+              android_material_icon_name="arrow-back"
               size={24}
-              color={colors.primary}
+              color={colors.text}
             />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Summary</Text>
@@ -231,7 +416,7 @@ export default function HaulingDumpstersPage2Screen() {
           <View style={styles.card}>
             <View style={styles.row}>
               <Text style={styles.label}>Hauling Company</Text>
-              <Text style={styles.value}>{haulingCompany}</Text>
+              <Text style={styles.value}>{haulingCompanyName}</Text>
             </View>
             <View style={styles.row}>
               <Text style={styles.label}>Submitted By</Text>
@@ -255,14 +440,36 @@ export default function HaulingDumpstersPage2Screen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Project Address</Text>
-          <TextInput
-            style={styles.input}
-            value={address}
-            onChangeText={setAddress}
-            placeholder="Enter project address"
-            placeholderTextColor={colors.textSecondary}
-            multiline
-          />
+          {!isEditingAddress ? (
+            <View style={styles.addressContainer}>
+              <View style={styles.addressRow}>
+                <Text style={styles.addressText}>{address || 'No address set'}</Text>
+                <TouchableOpacity
+                  style={styles.editButton}
+                  onPress={() => setIsEditingAddress(true)}
+                >
+                  <Text style={styles.editButtonText}>Edit</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <View style={styles.addressContainer}>
+              <TextInput
+                style={styles.input}
+                value={address}
+                onChangeText={setAddress}
+                placeholder="Enter project address"
+                placeholderTextColor={colors.textSecondary}
+                multiline
+              />
+              <TouchableOpacity
+                style={[styles.editButton, { marginTop: 8, alignSelf: 'flex-end' }]}
+                onPress={() => setIsEditingAddress(false)}
+              >
+                <Text style={styles.editButtonText}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       </ScrollView>
 

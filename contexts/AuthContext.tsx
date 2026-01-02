@@ -24,6 +24,7 @@ export interface Project {
   end_date: string;
   status: string;
   project_number: string;
+  address?: string; // Alias for location
 }
 
 interface AuthContextType {
@@ -164,7 +165,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       console.log('Projects loaded (excluding archived):', projectsData);
-      setAssignedProjects(projectsData || []);
+      // Map location to address for convenience
+      const projectsWithAddress = (projectsData || []).map(p => ({
+        ...p,
+        address: p.location
+      }));
+      setAssignedProjects(projectsWithAddress);
     } catch (error) {
       console.error('Error in loadEmployeeData:', error);
       setCurrentEmployee(null);
