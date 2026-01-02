@@ -1,9 +1,6 @@
 
+import React, { useState } from 'react';
 import { IconSymbol } from '@/components/IconSymbol';
-import React, { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
-import { colors } from '@/styles/commonStyles';
-import { useRouter } from 'expo-router';
 import {
   View,
   Text,
@@ -11,39 +8,55 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
-  ActivityIndicator,
-  Alert,
+  Modal,
 } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
-import { useAuth } from '@/contexts/AuthContext';
+import { colors } from '@/styles/commonStyles';
+import { useRouter } from 'expo-router';
 
-interface HaulingCompany {
-  id: string;
-  name: string;
-  contact_name: string;
-  phone_number: string;
-  email: string;
-}
+const HAULING_COMPANIES = [
+  'ABC Hauling',
+  'Chicago Waste Co.',
+  'Demo Transport',
+];
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  scrollContent: { padding: 20 },
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 24,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 60 : 20,
+    paddingBottom: 15,
+    backgroundColor: colors.primary,
   },
-  backButton: { marginRight: 12 },
+  backButton: {
+    padding: 8,
+  },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.text,
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#fff',
+    flex: 1,
+    textAlign: 'center',
+    marginRight: 40,
   },
-  card: {
-    backgroundColor: colors.cardBackground,
-    borderRadius: 12,
+  content: {
     padding: 20,
-    marginBottom: 20,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    marginBottom: 32,
   },
   label: {
     fontSize: 16,
@@ -51,173 +64,123 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 12,
   },
-  pickerContainer: {
+  dropdownButton: {
+    backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 8,
-    overflow: 'hidden',
-    backgroundColor: '#fff',
-  },
-  picker: {
-    height: 50,
-  },
-  companyDetails: {
-    marginTop: 16,
-    padding: 12,
-    backgroundColor: colors.background,
-    borderRadius: 8,
-  },
-  detailRow: {
+    padding: 16,
     flexDirection: 'row',
-    marginBottom: 8,
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  detailLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    width: 80,
-  },
-  detailValue: {
-    fontSize: 14,
+  dropdownText: {
+    fontSize: 16,
     color: colors.text,
+  },
+  dropdownPlaceholder: {
+    fontSize: 16,
+    color: colors.textSecondary,
+  },
+  modalOverlay: {
     flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    width: '80%',
+    maxHeight: '60%',
+  },
+  modalHeader: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  optionButton: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  optionText: {
+    fontSize: 16,
+    color: colors.text,
+  },
+  selectedOption: {
+    backgroundColor: colors.primaryLight,
   },
   nextButton: {
     backgroundColor: colors.primary,
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: 32,
   },
   nextButtonDisabled: {
-    backgroundColor: colors.border,
+    backgroundColor: colors.disabled,
   },
   nextButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
 });
 
 export default function HaulingDumpstersPage0Screen() {
   const router = useRouter();
-  const { currentEmployee } = useAuth();
-  const [companies, setCompanies] = useState<HaulingCompany[]>([]);
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
-  const [selectedCompany, setSelectedCompany] = useState<HaulingCompany | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    loadHaulingCompanies();
-  }, []);
-
-  const loadHaulingCompanies = async () => {
-    try {
-      if (!currentEmployee?.org_id) return;
-
-      const { data, error } = await supabase
-        .from('hauling_companies')
-        .select('id, name, contact_name, phone_number, email')
-        .eq('org_id', currentEmployee.org_id)
-        .eq('is_active', true)
-        .order('name');
-
-      if (error) throw error;
-      setCompanies(data || []);
-    } catch (error) {
-      console.error('Error loading hauling companies:', error);
-      Alert.alert('Error', 'Failed to load hauling companies');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCompanySelect = (companyId: string) => {
-    setSelectedCompanyId(companyId);
-    const company = companies.find(c => c.id === companyId);
-    setSelectedCompany(company || null);
-  };
+  const [selectedCompany, setSelectedCompany] = useState<string>('');
+  const [showDropdown, setShowDropdown] = useState(false);
 
   const handleNext = () => {
-    if (!selectedCompany) {
-      Alert.alert('Required', 'Please select a hauling company');
-      return;
-    }
-
+    if (!selectedCompany) return;
+    
     router.push({
       pathname: '/hauling-dumpsters-1',
-      params: {
-        companyId: selectedCompany.id,
-        companyName: selectedCompany.name,
-        companyContactName: selectedCompany.contact_name,
-        companyPhone: selectedCompany.phone_number,
-        companyEmail: selectedCompany.email,
-      },
+      params: { haulingCompany: selectedCompany },
     });
   };
 
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+        >
+          <IconSymbol name="chevron.left" size={24} color="#fff" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Hauling Dumpsters</Text>
+      </View>
+
+      <ScrollView style={styles.content}>
+        <Text style={styles.title}>Select Hauling Company</Text>
+        <Text style={styles.subtitle}>
+          Choose the company that will handle this hauling request
+        </Text>
+
+        <Text style={styles.label}>Hauling Company</Text>
+        <TouchableOpacity
+          style={styles.dropdownButton}
+          onPress={() => setShowDropdown(true)}
+        >
+          <Text
+            style={
+              selectedCompany
+                ? styles.dropdownText
+                : styles.dropdownPlaceholder
+            }
           >
-            <IconSymbol name="chevron.left" size={24} color={colors.primary} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Select Hauling Company</Text>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.label}>Hauling Company</Text>
-          <View style={styles.pickerContainer}>
-            <Picker
-              selectedValue={selectedCompanyId}
-              onValueChange={handleCompanySelect}
-              style={styles.picker}
-            >
-              <Picker.Item label="Select a company..." value="" />
-              {companies.map(company => (
-                <Picker.Item
-                  key={company.id}
-                  label={company.name}
-                  value={company.id}
-                />
-              ))}
-            </Picker>
-          </View>
-
-          {selectedCompany && (
-            <View style={styles.companyDetails}>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Contact:</Text>
-                <Text style={styles.detailValue}>{selectedCompany.contact_name}</Text>
-              </View>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Phone:</Text>
-                <Text style={styles.detailValue}>{selectedCompany.phone_number}</Text>
-              </View>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Email:</Text>
-                <Text style={styles.detailValue}>{selectedCompany.email}</Text>
-              </View>
-            </View>
-          )}
-        </View>
+            {selectedCompany || 'Select a company...'}
+          </Text>
+          <IconSymbol name="chevron.down" size={20} color={colors.textSecondary} />
+        </TouchableOpacity>
 
         <TouchableOpacity
           style={[
@@ -230,6 +193,42 @@ export default function HaulingDumpstersPage0Screen() {
           <Text style={styles.nextButtonText}>NEXT</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      <Modal
+        visible={showDropdown}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDropdown(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowDropdown(false)}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Hauling Company</Text>
+            </View>
+            <ScrollView>
+              {HAULING_COMPANIES.map((company) => (
+                <TouchableOpacity
+                  key={company}
+                  style={[
+                    styles.optionButton,
+                    selectedCompany === company && styles.selectedOption,
+                  ]}
+                  onPress={() => {
+                    setSelectedCompany(company);
+                    setShowDropdown(false);
+                  }}
+                >
+                  <Text style={styles.optionText}>{company}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
