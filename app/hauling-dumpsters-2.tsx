@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
+  TextInput,
   ActivityIndicator,
   Alert,
 } from 'react-native';
@@ -16,93 +17,91 @@ import { colors } from '@/styles/commonStyles';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 
-interface DumpsterItem {
-  dumpster_type: string;
+type DumpsterType = 'Rubbish' | 'Heavy' | 'Concrete' | 'Scrap' | 'ACM' | 'Lead';
+
+interface DumpsterData {
   quantity: number;
-  extra_work_quantity: number;
+  extraWorkAnswer: 'yes' | 'no' | null;
+  extraWorkQuantity: number;
 }
+
+type DumpsterQuantities = Record<DumpsterType, DumpsterData>;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
   },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 80,
-    paddingBottom: 120,
-  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 32,
-  },
-  backButton: {
-    marginRight: 12,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'android' ? 48 : 60,
+    paddingBottom: 16,
+    backgroundColor: colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '700',
     color: colors.text,
   },
-  sectionContainer: {
+  content: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  dateTime: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 24,
+  },
+  section: {
     backgroundColor: colors.white,
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: 12,
+    padding: 18,
     marginBottom: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.08)',
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.06)',
     elevation: 2,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 17,
+    fontWeight: '600',
     color: colors.text,
-    marginBottom: 16,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     marginBottom: 12,
   },
-  infoLabel: {
+  addressInput: {
+    backgroundColor: colors.background,
+    borderRadius: 8,
+    padding: 12,
     fontSize: 15,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    flex: 1,
-  },
-  infoValue: {
-    fontSize: 15,
-    fontWeight: '400',
     color: colors.text,
-    flex: 1,
-    textAlign: 'right',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginVertical: 16,
+    minHeight: 80,
+    textAlignVertical: 'top',
   },
   dumpsterItem: {
-    marginBottom: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   dumpsterType: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 8,
-  },
-  dumpsterDetail: {
-    fontSize: 14,
-    color: colors.textSecondary,
     marginBottom: 4,
   },
-  bottomButtonContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+  dumpsterQuantity: {
+    fontSize: 15,
+    color: colors.textSecondary,
+  },
+  extraWorkText: {
+    fontSize: 15,
+    color: colors.primary,
+    marginTop: 4,
+  },
+  footer: {
     backgroundColor: colors.white,
     paddingHorizontal: 20,
     paddingTop: 16,
@@ -115,8 +114,6 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'center',
   },
   submitButtonDisabled: {
     backgroundColor: colors.disabled,
@@ -125,205 +122,227 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 17,
     fontWeight: '600',
-    marginLeft: 8,
   },
 });
 
 export default function HaulingDumpstersPage2Screen() {
-  const router = useRouter();
-  const params = useLocalSearchParams();
   const { currentProject, currentEmployee } = useAuth();
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [projectAddress, setProjectAddress] = useState('');
+  
+  const params = useLocalSearchParams();
+  
+  useEffect(() => {
+    if (currentProject?.address) {
+      setProjectAddress(currentProject.address);
+    }
+  }, [currentProject]);
 
-  const haulingCompanyId = params.haulingCompanyId as string;
-  const haulingCompanyName = params.haulingCompanyName as string;
-  const haulingCompanyPhone = params.haulingCompanyPhone as string;
-  const haulingCompanyEmail = params.haulingCompanyEmail as string;
-  const haulingCompanyContact = params.haulingCompanyContact as string;
+  const getCurrentDate = () => {
+    const now = new Date();
+    return now.toLocaleDateString('en-US', { 
+      month: 'long', 
+      day: 'numeric', 
+      year: 'numeric' 
+    });
+  };
 
-  const addDumpstersRaw = params.addDumpsters as string;
-  const replaceDumpstersRaw = params.replaceDumpsters as string;
-
-  const addDumpsters: DumpsterItem[] = addDumpstersRaw ? JSON.parse(addDumpstersRaw) : [];
-  const replaceDumpsters: DumpsterItem[] = replaceDumpstersRaw ? JSON.parse(replaceDumpstersRaw) : [];
+  const getCurrentTime = () => {
+    const now = new Date();
+    return now.toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    });
+  };
 
   const handleSubmit = async () => {
-    // Guard against double submits
+    // Guard: prevent double submissions
     if (loading) {
-      console.log('Already submitting, ignoring duplicate submit');
+      console.log('Submit already in progress, ignoring duplicate request');
       return;
     }
-
-    if (!currentProject || !currentEmployee) {
-      Alert.alert('Error', 'Missing project or employee information');
-      return;
-    }
-
+    
     setLoading(true);
-
+    console.log('Starting hauling request submission...');
+    
     try {
-      console.log('Submitting hauling request...');
+      const haulingCompanyId = params.haulingCompanyId as string;
+      const haulingCompanyName = params.haulingCompanyName as string;
+      const haulingCompanyPhone = params.haulingCompanyPhone as string;
+      const haulingCompanyEmail = params.haulingCompanyEmail as string;
+      
+      const addDumpstersRaw = params.addDumpsters as string;
+      const replaceDumpstersRaw = params.replaceDumpsters as string;
+      
+      const addDumpsters: DumpsterQuantities = addDumpstersRaw 
+        ? JSON.parse(addDumpstersRaw) 
+        : {};
+      const replaceDumpsters: DumpsterQuantities = replaceDumpstersRaw 
+        ? JSON.parse(replaceDumpstersRaw) 
+        : {};
 
-      // TODO: Backend Integration - Submit hauling request to Edge Function
+      const payload = {
+        project_id: currentProject?.id,
+        project_address: projectAddress,
+        hauling_company_id: haulingCompanyId,
+        hauling_company_name: haulingCompanyName,
+        hauling_company_phone: haulingCompanyPhone,
+        hauling_company_email: haulingCompanyEmail,
+        add_dumpsters: addDumpsters,
+        replace_dumpsters: replaceDumpsters,
+      };
+
+      console.log('Invoking submit-hauling-request Edge Function with payload:', payload);
+
       const { data: response, error: edgeFunctionError } = await supabase.functions.invoke(
         'submit-hauling-request',
-        {
-          body: {
-            project_id: currentProject.id,
-            project_address: currentProject.address || 'N/A',
-            hauling_company_id: haulingCompanyId,
-            hauling_company_name: haulingCompanyName,
-            hauling_company_phone: haulingCompanyPhone || '',
-            hauling_company_email: haulingCompanyEmail || '',
-            hauling_company_contact: haulingCompanyContact || '',
-            add_dumpsters: addDumpsters,
-            replace_dumpsters: replaceDumpsters,
-          },
-        }
+        { body: payload }
       );
 
+      console.log('Edge Function response:', response);
+      console.log('Edge Function error:', edgeFunctionError);
+
       if (edgeFunctionError) {
-        console.error('Edge function error:', edgeFunctionError);
-        Alert.alert('Error', 'Failed to submit hauling request. Please try again.');
+        console.error('Edge Function returned error:', edgeFunctionError);
+        Alert.alert(
+          'Submission Error',
+          `Failed to submit hauling request: ${edgeFunctionError.message}`,
+          [{ text: 'OK' }]
+        );
         return;
       }
 
-      console.log('Edge function response:', response);
-
       if (response?.success) {
-        // Immediately redirect to dashboard on success
-        console.log('Submission successful, redirecting to dashboard');
-        router.replace('/(tabs)/(home)');
-      } else {
-        // Show warning but still redirect
+        console.log('Hauling request submitted successfully');
         Alert.alert(
-          'Warning',
-          response?.message || 'Request submitted but webhook notification may have failed.',
+          'Success',
+          'Hauling request submitted successfully!',
           [
             {
               text: 'OK',
-              onPress: () => router.replace('/(tabs)/(home)'),
+              onPress: () => {
+                console.log('Navigating back to dashboard');
+                router.replace('/(tabs)/(home)');
+              },
+            },
+          ]
+        );
+      } else {
+        console.warn('Hauling request submission unclear:', response);
+        Alert.alert(
+          'Warning',
+          response?.message || 'Request submitted but status unclear.',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                console.log('Navigating back to dashboard after warning');
+                router.replace('/(tabs)/(home)');
+              },
             },
           ]
         );
       }
-    } catch (error) {
-      console.error('Exception during submission:', error);
-      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+    } catch (error: any) {
+      console.error('Exception during hauling request submission:', error);
+      Alert.alert(
+        'Error',
+        `An unexpected error occurred: ${error?.message || 'Unknown error'}`,
+        [{ text: 'OK' }]
+      );
     } finally {
-      // Always reset loading state
+      // Always reset loading state, no matter what happened
+      console.log('Resetting loading state');
       setLoading(false);
     }
   };
 
+  const renderDumpsterList = (dumpsters: DumpsterQuantities, title: string) => {
+    const entries = Object.entries(dumpsters).filter(
+      ([_, data]) => data.quantity > 0
+    );
+
+    if (entries.length === 0) return null;
+
+    return (
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+        {entries.map(([type, data], index) => (
+          <View 
+            key={type} 
+            style={[
+              styles.dumpsterItem,
+              index === entries.length - 1 && { borderBottomWidth: 0 }
+            ]}
+          >
+            <Text style={styles.dumpsterType}>{type}</Text>
+            <Text style={styles.dumpsterQuantity}>
+              Quantity: {data.quantity}
+            </Text>
+            {data.extraWorkAnswer === 'yes' && data.extraWorkQuantity > 0 && (
+              <Text style={styles.extraWorkText}>
+                Extra Work: {data.extraWorkQuantity}
+              </Text>
+            )}
+          </View>
+        ))}
+      </View>
+    );
+  };
+
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.scrollContent}>
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <IconSymbol
-              ios_icon_name="chevron.left"
-              android_material_icon_name="arrow-back"
-              size={24}
-              color={colors.text}
-            />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Summary</Text>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()}>
+          <IconSymbol 
+            ios_icon_name="chevron.left" 
+            android_material_icon_name="arrow-back"
+            size={24} 
+            color={colors.text} 
+          />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Summary</Text>
+        <View style={{ width: 24 }} />
+      </View>
+
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <Text style={styles.dateTime}>
+          {getCurrentDate()} • {getCurrentTime()}
+        </Text>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Project Address</Text>
+          <TextInput
+            style={styles.addressInput}
+            value={projectAddress}
+            onChangeText={setProjectAddress}
+            placeholder="Enter project address"
+            placeholderTextColor={colors.textSecondary}
+            multiline
+          />
         </View>
 
-        {/* Request Details Section */}
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Request Details</Text>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Hauling Company:</Text>
-            <Text style={styles.infoValue}>{haulingCompanyName}</Text>
-          </View>
-          {haulingCompanyContact && (
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Contact:</Text>
-              <Text style={styles.infoValue}>{haulingCompanyContact}</Text>
-            </View>
-          )}
-          {haulingCompanyPhone && (
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Phone:</Text>
-              <Text style={styles.infoValue}>{haulingCompanyPhone}</Text>
-            </View>
-          )}
-          {haulingCompanyEmail && (
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Email:</Text>
-              <Text style={styles.infoValue}>{haulingCompanyEmail}</Text>
-            </View>
-          )}
-        </View>
-
-        {/* Add Dumpsters Section */}
-        {addDumpsters.length > 0 && (
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Add Dumpsters</Text>
-            {addDumpsters.map((item, index) => (
-              <View key={index} style={styles.dumpsterItem}>
-                <Text style={styles.dumpsterType}>{item.dumpster_type}</Text>
-                <Text style={styles.dumpsterDetail}>Total Quantity: {item.quantity}</Text>
-                {item.extra_work_quantity > 0 && (
-                  <Text style={styles.dumpsterDetail}>
-                    Extra Work: {item.extra_work_quantity}
-                  </Text>
-                )}
-                {item.extra_work_quantity > 0 && (
-                  <Text style={styles.dumpsterDetail}>
-                    Normal Work: {item.quantity - item.extra_work_quantity}
-                  </Text>
-                )}
-              </View>
-            ))}
-          </View>
+        {renderDumpsterList(
+          params.addDumpsters ? JSON.parse(params.addDumpsters as string) : {},
+          'Add Dumpsters'
         )}
 
-        {/* Replace Dumpsters Section */}
-        {replaceDumpsters.length > 0 && (
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Replace Dumpsters</Text>
-            {replaceDumpsters.map((item, index) => (
-              <View key={index} style={styles.dumpsterItem}>
-                <Text style={styles.dumpsterType}>{item.dumpster_type}</Text>
-                <Text style={styles.dumpsterDetail}>Total Quantity: {item.quantity}</Text>
-                {item.extra_work_quantity > 0 && (
-                  <Text style={styles.dumpsterDetail}>
-                    Extra Work: {item.extra_work_quantity}
-                  </Text>
-                )}
-                {item.extra_work_quantity > 0 && (
-                  <Text style={styles.dumpsterDetail}>
-                    Normal Work: {item.quantity - item.extra_work_quantity}
-                  </Text>
-                )}
-              </View>
-            ))}
-          </View>
-        )}
-
-        {/* Project Address Section */}
-        {currentProject?.address && (
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Project Address</Text>
-            <Text style={styles.infoValue}>{currentProject.address}</Text>
-          </View>
+        {renderDumpsterList(
+          params.replaceDumpsters ? JSON.parse(params.replaceDumpsters as string) : {},
+          'Replace Dumpsters'
         )}
       </ScrollView>
 
-      <View style={styles.bottomButtonContainer}>
+      <View style={styles.footer}>
         <TouchableOpacity
           style={[styles.submitButton, loading && styles.submitButtonDisabled]}
           onPress={handleSubmit}
           disabled={loading}
         >
           {loading ? (
-            <>
-              <ActivityIndicator size="small" color={colors.white} />
-              <Text style={styles.submitButtonText}>SUBMITTING...</Text>
-            </>
+            <ActivityIndicator color="#fff" />
           ) : (
             <Text style={styles.submitButtonText}>SUBMIT</Text>
           )}
