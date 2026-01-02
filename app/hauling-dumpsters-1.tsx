@@ -1,8 +1,5 @@
 
-import { IconSymbol } from '@/components/IconSymbol';
 import React, { useState } from 'react';
-import { colors } from '@/styles/commonStyles';
-import { useRouter, useLocalSearchParams } from 'expo-router';
 import {
   View,
   Text,
@@ -10,363 +7,320 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
-  Alert,
 } from 'react-native';
+import { useRouter } from 'expo-router';
+import { colors } from '@/styles/commonStyles';
+import { IconSymbol } from '@/components/IconSymbol';
 
-type DumpsterType = '10 Yard' | '20 Yard' | '30 Yard' | '40 Yard';
-
-interface DumpsterData {
-  quantity: number;
-  extraWork: boolean;
-  extraWorkQuantity: number;
+interface DumpsterQuantities {
+  [key: string]: number;
 }
 
-type DumpsterQuantities = Record<DumpsterType, DumpsterData>;
-
-const DUMPSTER_TYPES: DumpsterType[] = ['10 Yard', '20 Yard', '30 Yard', '40 Yard'];
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  scrollContent: { padding: 20, paddingBottom: 40 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  backButton: { marginRight: 12 },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 16,
-    marginTop: 8,
-  },
-  dumpsterCard: {
-    backgroundColor: colors.cardBackground,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-  },
-  dumpsterHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  dumpsterLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  quantityControl: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  quantityButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  quantityButtonDisabled: {
-    backgroundColor: colors.border,
-  },
-  quantityText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-    marginHorizontal: 16,
-    minWidth: 30,
-    textAlign: 'center',
-  },
-  extraWorkSection: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  extraWorkQuestion: {
-    fontSize: 14,
-    color: colors.text,
-    marginBottom: 8,
-  },
-  extraWorkButtons: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  extraWorkButton: {
-    flex: 1,
-    padding: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-  },
-  extraWorkButtonSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  extraWorkButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  extraWorkButtonTextSelected: {
-    color: '#fff',
-  },
-  extraWorkQuantityControl: {
-    marginTop: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  extraWorkLabel: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  nextButton: {
-    backgroundColor: colors.primary,
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  nextButtonDisabled: {
-    backgroundColor: colors.border,
-  },
-  nextButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-});
+const dumpsterTypes = [
+  'Rubbish',
+  'Heavy',
+  'Concrete',
+  'Scrap',
+  'ACM',
+  'Lead',
+];
 
 export default function HaulingDumpstersPage1Screen() {
   const router = useRouter();
-  const params = useLocalSearchParams();
+  const [addExpanded, setAddExpanded] = useState(false);
+  const [replaceExpanded, setReplaceExpanded] = useState(false);
+  
+  const [addQuantities, setAddQuantities] = useState<DumpsterQuantities>(
+    dumpsterTypes.reduce((acc, type) => ({ ...acc, [type]: 0 }), {})
+  );
+  
+  const [replaceQuantities, setReplaceQuantities] = useState<DumpsterQuantities>(
+    dumpsterTypes.reduce((acc, type) => ({ ...acc, [type]: 0 }), {})
+  );
 
-  const [addQuantities, setAddQuantities] = useState<DumpsterQuantities>({
-    '10 Yard': { quantity: 0, extraWork: false, extraWorkQuantity: 0 },
-    '20 Yard': { quantity: 0, extraWork: false, extraWorkQuantity: 0 },
-    '30 Yard': { quantity: 0, extraWork: false, extraWorkQuantity: 0 },
-    '40 Yard': { quantity: 0, extraWork: false, extraWorkQuantity: 0 },
-  });
-
-  const [replaceQuantities, setReplaceQuantities] = useState<DumpsterQuantities>({
-    '10 Yard': { quantity: 0, extraWork: false, extraWorkQuantity: 0 },
-    '20 Yard': { quantity: 0, extraWork: false, extraWorkQuantity: 0 },
-    '30 Yard': { quantity: 0, extraWork: false, extraWorkQuantity: 0 },
-    '40 Yard': { quantity: 0, extraWork: false, extraWorkQuantity: 0 },
-  });
-
-  const updateQuantity = (
-    type: DumpsterType,
+  const handleQuantityChange = (
     section: 'add' | 'replace',
+    type: string,
     delta: number
   ) => {
-    const setter = section === 'add' ? setAddQuantities : setReplaceQuantities;
-    setter(prev => {
-      const current = prev[type];
-      const newQuantity = Math.max(0, current.quantity + delta);
-      return {
+    if (section === 'add') {
+      setAddQuantities((prev) => ({
         ...prev,
-        [type]: {
-          ...current,
-          quantity: newQuantity,
-          extraWork: newQuantity > 0 ? current.extraWork : false,
-          extraWorkQuantity: newQuantity > 0 ? Math.min(current.extraWorkQuantity, newQuantity) : 0,
-        },
-      };
-    });
-  };
-
-  const setExtraWork = (
-    type: DumpsterType,
-    section: 'add' | 'replace',
-    value: boolean
-  ) => {
-    const setter = section === 'add' ? setAddQuantities : setReplaceQuantities;
-    setter(prev => ({
-      ...prev,
-      [type]: {
-        ...prev[type],
-        extraWork: value,
-        extraWorkQuantity: value ? 1 : 0,
-      },
-    }));
-  };
-
-  const updateExtraWorkQuantity = (
-    type: DumpsterType,
-    section: 'add' | 'replace',
-    delta: number
-  ) => {
-    const setter = section === 'add' ? setAddQuantities : setReplaceQuantities;
-    setter(prev => {
-      const current = prev[type];
-      const newQuantity = Math.max(1, Math.min(current.quantity, current.extraWorkQuantity + delta));
-      return {
+        [type]: Math.max(0, prev[type] + delta),
+      }));
+    } else {
+      setReplaceQuantities((prev) => ({
         ...prev,
-        [type]: { ...current, extraWorkQuantity: newQuantity },
-      };
-    });
-  };
-
-  const renderDumpsterCard = (
-    type: DumpsterType,
-    section: 'add' | 'replace'
-  ) => {
-    const quantities = section === 'add' ? addQuantities : replaceQuantities;
-    const data = quantities[type];
-
-    return (
-      <View key={`${section}-${type}`} style={styles.dumpsterCard}>
-        <View style={styles.dumpsterHeader}>
-          <Text style={styles.dumpsterLabel}>{type}</Text>
-          <View style={styles.quantityControl}>
-            <TouchableOpacity
-              style={[
-                styles.quantityButton,
-                data.quantity === 0 && styles.quantityButtonDisabled,
-              ]}
-              onPress={() => updateQuantity(type, section, -1)}
-              disabled={data.quantity === 0}
-            >
-              <IconSymbol ios_icon_name="minus" android_material_icon_name="remove" size={20} color="#fff" />
-            </TouchableOpacity>
-            <Text style={styles.quantityText}>{data.quantity}</Text>
-            <TouchableOpacity
-              style={styles.quantityButton}
-              onPress={() => updateQuantity(type, section, 1)}
-            >
-              <IconSymbol ios_icon_name="plus" android_material_icon_name="add" size={20} color="#fff" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {data.quantity > 0 && (
-          <View style={styles.extraWorkSection}>
-            <Text style={styles.extraWorkQuestion}>
-              Are any of these dumpsters for extra work?
-            </Text>
-            <View style={styles.extraWorkButtons}>
-              <TouchableOpacity
-                style={[
-                  styles.extraWorkButton,
-                  data.extraWork && styles.extraWorkButtonSelected,
-                ]}
-                onPress={() => setExtraWork(type, section, true)}
-              >
-                <Text
-                  style={[
-                    styles.extraWorkButtonText,
-                    data.extraWork && styles.extraWorkButtonTextSelected,
-                  ]}
-                >
-                  Yes
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.extraWorkButton,
-                  !data.extraWork && styles.extraWorkButtonSelected,
-                ]}
-                onPress={() => setExtraWork(type, section, false)}
-              >
-                <Text
-                  style={[
-                    styles.extraWorkButtonText,
-                    !data.extraWork && styles.extraWorkButtonTextSelected,
-                  ]}
-                >
-                  No
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {data.extraWork && (
-              <View style={styles.extraWorkQuantityControl}>
-                <Text style={styles.extraWorkLabel}>Extra work quantity:</Text>
-                <View style={styles.quantityControl}>
-                  <TouchableOpacity
-                    style={[
-                      styles.quantityButton,
-                      data.extraWorkQuantity === 1 && styles.quantityButtonDisabled,
-                    ]}
-                    onPress={() => updateExtraWorkQuantity(type, section, -1)}
-                    disabled={data.extraWorkQuantity === 1}
-                  >
-                    <IconSymbol ios_icon_name="minus" android_material_icon_name="remove" size={20} color="#fff" />
-                  </TouchableOpacity>
-                  <Text style={styles.quantityText}>{data.extraWorkQuantity}</Text>
-                  <TouchableOpacity
-                    style={[
-                      styles.quantityButton,
-                      data.extraWorkQuantity === data.quantity && styles.quantityButtonDisabled,
-                    ]}
-                    onPress={() => updateExtraWorkQuantity(type, section, 1)}
-                    disabled={data.extraWorkQuantity === data.quantity}
-                  >
-                    <IconSymbol ios_icon_name="plus" android_material_icon_name="add" size={20} color="#fff" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-          </View>
-        )}
-      </View>
-    );
+        [type]: Math.max(0, prev[type] + delta),
+      }));
+    }
   };
 
   const handleNext = () => {
-    const hasSelection = DUMPSTER_TYPES.some(
-      type => addQuantities[type].quantity > 0 || replaceQuantities[type].quantity > 0
-    );
-
-    if (!hasSelection) {
-      Alert.alert('Required', 'Please select at least one dumpster');
-      return;
-    }
-
+    console.log('Navigating to Hauling Dumpsters Summary');
+    console.log('Add quantities:', addQuantities);
+    console.log('Replace quantities:', replaceQuantities);
+    
     router.push({
       pathname: '/hauling-dumpsters-2',
       params: {
-        ...params,
         addQuantities: JSON.stringify(addQuantities),
         replaceQuantities: JSON.stringify(replaceQuantities),
       },
     });
   };
 
+  const renderQuantityControl = (
+    section: 'add' | 'replace',
+    type: string,
+    quantity: number
+  ) => (
+    <View key={type} style={styles.quantityRow}>
+      <Text style={styles.dumpsterType}>{type}</Text>
+      <View style={styles.quantityControl}>
+        <TouchableOpacity
+          style={styles.quantityButton}
+          onPress={() => handleQuantityChange(section, type, -1)}
+          activeOpacity={0.7}
+        >
+          <IconSymbol
+            ios_icon_name="minus.circle.fill"
+            android_material_icon_name="remove-circle"
+            size={32}
+            color={colors.primary}
+          />
+        </TouchableOpacity>
+        
+        <Text style={styles.quantityValue}>{quantity}</Text>
+        
+        <TouchableOpacity
+          style={styles.quantityButton}
+          onPress={() => handleQuantityChange(section, type, 1)}
+          activeOpacity={0.7}
+        >
+          <IconSymbol
+            ios_icon_name="plus.circle.fill"
+            android_material_icon_name="add-circle"
+            size={32}
+            color={colors.primary}
+          />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
-            <IconSymbol ios_icon_name="chevron.left" android_material_icon_name="arrow-back" size={24} color={colors.primary} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Hauling Dumpsters</Text>
-        </View>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <IconSymbol
+            ios_icon_name="chevron.left"
+            android_material_icon_name="arrow-back"
+            size={24}
+            color={colors.text}
+          />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Hauling Dumpsters</Text>
+        <View style={styles.placeholder} />
+      </View>
 
-        <Text style={styles.sectionTitle}>Add Dumpsters</Text>
-        {DUMPSTER_TYPES.map(type => renderDumpsterCard(type, 'add'))}
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={styles.description}>
+          Request dumpsters to be added or replaced.
+        </Text>
 
-        <Text style={styles.sectionTitle}>Replace Dumpsters</Text>
-        {DUMPSTER_TYPES.map(type => renderDumpsterCard(type, 'replace'))}
+        {/* Add Dumpsters Card */}
+        <TouchableOpacity
+          style={styles.expandableCard}
+          onPress={() => setAddExpanded(!addExpanded)}
+          activeOpacity={0.7}
+        >
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>Add Dumpsters</Text>
+            <IconSymbol
+              ios_icon_name={addExpanded ? 'chevron.up' : 'chevron.down'}
+              android_material_icon_name={
+                addExpanded ? 'keyboard-arrow-up' : 'keyboard-arrow-down'
+              }
+              size={24}
+              color={colors.text}
+            />
+          </View>
+        </TouchableOpacity>
 
-        <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
+        {addExpanded && (
+          <View style={styles.expandedContent}>
+            {dumpsterTypes.map((type) =>
+              renderQuantityControl('add', type, addQuantities[type])
+            )}
+          </View>
+        )}
+
+        {/* Replace Dumpsters Card */}
+        <TouchableOpacity
+          style={styles.expandableCard}
+          onPress={() => setReplaceExpanded(!replaceExpanded)}
+          activeOpacity={0.7}
+        >
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>Replace Dumpsters</Text>
+            <IconSymbol
+              ios_icon_name={replaceExpanded ? 'chevron.up' : 'chevron.down'}
+              android_material_icon_name={
+                replaceExpanded ? 'keyboard-arrow-up' : 'keyboard-arrow-down'
+              }
+              size={24}
+              color={colors.text}
+            />
+          </View>
+        </TouchableOpacity>
+
+        {replaceExpanded && (
+          <View style={styles.expandedContent}>
+            {dumpsterTypes.map((type) =>
+              renderQuantityControl('replace', type, replaceQuantities[type])
+            )}
+          </View>
+        )}
+      </ScrollView>
+
+      <View style={styles.footer}>
+        <TouchableOpacity
+          style={styles.nextButton}
+          onPress={handleNext}
+          activeOpacity={0.7}
+        >
           <Text style={styles.nextButtonText}>NEXT</Text>
         </TouchableOpacity>
-      </ScrollView>
+      </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+    paddingTop: Platform.OS === 'android' ? 48 : 60,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+  },
+  backButton: {
+    padding: 8,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  placeholder: {
+    width: 40,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 120,
+  },
+  description: {
+    fontSize: 16,
+    color: colors.text,
+    marginBottom: 20,
+    fontWeight: '500',
+  },
+  expandableCard: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 16,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
+    elevation: 3,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  expandedContent: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    marginTop: -8,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
+    elevation: 3,
+  },
+  quantityRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    backgroundColor: colors.background,
+    borderRadius: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  dumpsterType: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    flex: 1,
+  },
+  quantityControl: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  quantityButton: {
+    padding: 4,
+  },
+  quantityValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    minWidth: 30,
+    textAlign: 'center',
+  },
+  footer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: colors.card,
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    boxShadow: '0px -2px 8px rgba(0, 0, 0, 0.1)',
+    elevation: 8,
+  },
+  nextButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nextButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.card,
+    letterSpacing: 0.5,
+  },
+});
