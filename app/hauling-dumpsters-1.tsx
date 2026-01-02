@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -31,13 +31,13 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 60,
+    paddingTop: 80,
     paddingBottom: 120,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 32,
   },
   backButton: {
     marginRight: 12,
@@ -53,6 +53,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 4,
     marginBottom: 24,
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.06)',
+    elevation: 1,
   },
   tab: {
     flex: 1,
@@ -74,8 +76,10 @@ const styles = StyleSheet.create({
   dumpsterCard: {
     backgroundColor: colors.white,
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    padding: 18,
+    marginBottom: 20,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.06)',
+    elevation: 2,
   },
   dumpsterHeader: {
     flexDirection: 'row',
@@ -112,15 +116,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   extraWorkSection: {
-    marginTop: 12,
-    paddingTop: 12,
+    marginTop: 16,
+    paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
   extraWorkQuestion: {
     fontSize: 15,
     color: colors.text,
-    marginBottom: 8,
+    marginBottom: 12,
+    lineHeight: 20,
   },
   extraWorkButtons: {
     flexDirection: 'row',
@@ -128,11 +133,12 @@ const styles = StyleSheet.create({
   },
   extraWorkButton: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.border,
     alignItems: 'center',
+    backgroundColor: colors.white,
   },
   extraWorkButtonSelected: {
     backgroundColor: colors.primary,
@@ -147,12 +153,12 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
   extraWorkQuantitySection: {
-    marginTop: 12,
+    marginTop: 16,
   },
   extraWorkLabel: {
     fontSize: 15,
     color: colors.text,
-    marginBottom: 8,
+    marginBottom: 12,
   },
   bottomButtonContainer: {
     position: 'absolute',
@@ -208,6 +214,26 @@ export default function HaulingDumpstersPage1Screen() {
   const currentDumpsters = activeTab === 'add' ? addDumpsters : replaceDumpsters;
   const setCurrentDumpsters = activeTab === 'add' ? setAddDumpsters : setReplaceDumpsters;
 
+  // Auto-default extra work answer to "No" when quantity becomes >= 1
+  useEffect(() => {
+    setCurrentDumpsters((prev) => {
+      const updated = { ...prev };
+      let hasChanges = false;
+      
+      DUMPSTER_TYPES.forEach((type) => {
+        if (updated[type].quantity >= 1 && updated[type].extraWorkAnswer === null) {
+          updated[type] = {
+            ...updated[type],
+            extraWorkAnswer: 'no',
+          };
+          hasChanges = true;
+        }
+      });
+      
+      return hasChanges ? updated : prev;
+    });
+  }, [currentDumpsters, setCurrentDumpsters]);
+
   const handleQuantityChange = (type: DumpsterType, delta: number) => {
     setCurrentDumpsters((prev) => {
       const newQuantity = Math.max(0, prev[type].quantity + delta);
@@ -216,7 +242,7 @@ export default function HaulingDumpstersPage1Screen() {
         [type]: {
           ...prev[type],
           quantity: newQuantity,
-          extraWorkAnswer: newQuantity === 0 ? null : prev[type].extraWorkAnswer,
+          extraWorkAnswer: newQuantity === 0 ? null : (prev[type].extraWorkAnswer || 'no'),
           extraWorkQuantity: newQuantity === 0 ? 1 : Math.min(prev[type].extraWorkQuantity, newQuantity),
         },
       };
@@ -265,7 +291,10 @@ export default function HaulingDumpstersPage1Screen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.scrollContent}>
+      <ScrollView 
+        style={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}

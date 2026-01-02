@@ -34,13 +34,13 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 60,
+    paddingTop: 80,
     paddingBottom: 120,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 32,
   },
   backButton: {
     marginRight: 12,
@@ -62,14 +62,20 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.white,
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    padding: 18,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.06)',
+    elevation: 2,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: 12,
   },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    paddingVertical: 8,
   },
   label: {
     fontSize: 15,
@@ -84,11 +90,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  dumpsterRowLast: {
+    borderBottomWidth: 0,
   },
   dumpsterName: {
     fontSize: 15,
     color: colors.text,
+    fontWeight: '500',
   },
   dumpsterQuantity: {
     fontSize: 15,
@@ -99,31 +111,32 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.primary,
     marginLeft: 8,
+    fontWeight: '600',
   },
   addressContainer: {
-    marginBottom: 12,
+    marginBottom: 0,
   },
   addressRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
+    alignItems: 'flex-start',
+    gap: 12,
   },
   addressText: {
     fontSize: 15,
     color: colors.text,
     flex: 1,
+    lineHeight: 22,
   },
   editButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: colors.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: colors.primary,
   },
   editButtonText: {
     fontSize: 14,
-    color: colors.primary,
+    color: colors.white,
     fontWeight: '600',
   },
   input: {
@@ -134,7 +147,12 @@ const styles = StyleSheet.create({
     padding: 16,
     fontSize: 15,
     color: colors.text,
-    minHeight: 50,
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  doneButtonContainer: {
+    marginTop: 12,
+    alignItems: 'flex-end',
   },
   bottomButtonContainer: {
     position: 'absolute',
@@ -266,46 +284,57 @@ export default function HaulingDumpstersPage2Screen() {
         Alert.alert('Success', 'Hauling request submitted successfully', [
           {
             text: 'OK',
-            onPress: () => router.push('/(tabs)/(home)'),
+            onPress: () => {
+              // Navigate back to Project Dashboard after successful submission
+              router.push('/(tabs)/(home)');
+            },
           },
         ]);
       } else {
-        Alert.alert('Warning', 'Hauling request may not have been sent. Please check with your manager.');
-        router.push('/(tabs)/(home)');
+        Alert.alert('Warning', 'Hauling request may not have been sent. Please check with your manager.', [
+          {
+            text: 'OK',
+            onPress: () => {
+              router.push('/(tabs)/(home)');
+            },
+          },
+        ]);
       }
     } catch (error) {
       console.error('Exception submitting hauling request:', error);
       Alert.alert('Error', 'An unexpected error occurred');
-    } finally {
       setLoading(false);
     }
   };
 
   const renderDumpsterList = (dumpsters: DumpsterQuantities, title: string) => {
-    const hasAnyQuantity = Object.values(dumpsters).some((d) => d.quantity > 0);
+    const dumpsterEntries = Object.entries(dumpsters).filter(([_, data]) => data.quantity > 0);
     
-    if (!hasAnyQuantity) return null;
+    if (dumpsterEntries.length === 0) return null;
 
     return (
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{title}</Text>
         <View style={styles.card}>
-          {Object.entries(dumpsters).map(([type, data]) => {
-            if (data.quantity === 0) return null;
-            return (
-              <View key={type} style={styles.dumpsterRow}>
-                <Text style={styles.dumpsterName}>{type}</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={styles.dumpsterQuantity}>{data.quantity}</Text>
-                  {data.extraWorkAnswer === 'yes' && (
-                    <Text style={styles.extraWorkBadge}>
-                      ({data.extraWorkQuantity} extra work)
-                    </Text>
-                  )}
-                </View>
+          {dumpsterEntries.map(([type, data], index) => (
+            <View 
+              key={type} 
+              style={[
+                styles.dumpsterRow,
+                index === dumpsterEntries.length - 1 && styles.dumpsterRowLast,
+              ]}
+            >
+              <Text style={styles.dumpsterName}>{type}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={styles.dumpsterQuantity}>{data.quantity}</Text>
+                {data.extraWorkAnswer === 'yes' && (
+                  <Text style={styles.extraWorkBadge}>
+                    ({data.extraWorkQuantity} extra work)
+                  </Text>
+                )}
               </View>
-            );
-          })}
+            </View>
+          ))}
         </View>
       </View>
     );
@@ -313,7 +342,10 @@ export default function HaulingDumpstersPage2Screen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.scrollContent}>
+      <ScrollView 
+        style={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
@@ -336,17 +368,20 @@ export default function HaulingDumpstersPage2Screen() {
               <Text style={styles.label}>Hauling Company</Text>
               <Text style={styles.value}>{haulingCompanyName}</Text>
             </View>
+            <View style={styles.divider} />
             <View style={styles.row}>
               <Text style={styles.label}>Submitted By</Text>
               <Text style={styles.value}>
                 {currentEmployee?.first_name} {currentEmployee?.last_name}
               </Text>
             </View>
+            <View style={styles.divider} />
             <View style={styles.row}>
               <Text style={styles.label}>Date</Text>
               <Text style={styles.value}>{getCurrentDate()}</Text>
             </View>
-            <View style={[styles.row, { marginBottom: 0 }]}>
+            <View style={styles.divider} />
+            <View style={styles.row}>
               <Text style={styles.label}>Time</Text>
               <Text style={styles.value}>{getCurrentTime()}</Text>
             </View>
@@ -358,36 +393,40 @@ export default function HaulingDumpstersPage2Screen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Project Address</Text>
-          {!isEditingAddress ? (
-            <View style={styles.addressContainer}>
-              <View style={styles.addressRow}>
-                <Text style={styles.addressText}>{address || 'No address set'}</Text>
-                <TouchableOpacity
-                  style={styles.editButton}
-                  onPress={() => setIsEditingAddress(true)}
-                >
-                  <Text style={styles.editButtonText}>Edit</Text>
-                </TouchableOpacity>
+          <View style={styles.card}>
+            {!isEditingAddress ? (
+              <View style={styles.addressContainer}>
+                <View style={styles.addressRow}>
+                  <Text style={styles.addressText}>{address || 'No address set'}</Text>
+                  <TouchableOpacity
+                    style={styles.editButton}
+                    onPress={() => setIsEditingAddress(true)}
+                  >
+                    <Text style={styles.editButtonText}>Edit</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-          ) : (
-            <View style={styles.addressContainer}>
-              <TextInput
-                style={styles.input}
-                value={address}
-                onChangeText={setAddress}
-                placeholder="Enter project address"
-                placeholderTextColor={colors.textSecondary}
-                multiline
-              />
-              <TouchableOpacity
-                style={[styles.editButton, { marginTop: 8, alignSelf: 'flex-end' }]}
-                onPress={() => setIsEditingAddress(false)}
-              >
-                <Text style={styles.editButtonText}>Done</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+            ) : (
+              <View style={styles.addressContainer}>
+                <TextInput
+                  style={styles.input}
+                  value={address}
+                  onChangeText={setAddress}
+                  placeholder="Enter project address"
+                  placeholderTextColor={colors.textSecondary}
+                  multiline
+                />
+                <View style={styles.doneButtonContainer}>
+                  <TouchableOpacity
+                    style={styles.editButton}
+                    onPress={() => setIsEditingAddress(false)}
+                  >
+                    <Text style={styles.editButtonText}>Done</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </View>
         </View>
       </ScrollView>
 

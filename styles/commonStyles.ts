@@ -6,13 +6,16 @@ export const colors = {
   text: '#333333',
   textSecondary: '#666666',
   primary: '#2196F3',
+  primaryLight: '#E3F2FD',
   secondary: '#F44336',
   accent: '#FFC107',
   card: '#FFFFFF',
+  white: '#FFFFFF',
   highlight: '#E0E0E0',
   border: '#E0E0E0',
   success: '#4CAF50',
   warning: '#FF9800',
+  disabled: '#BDBDBD',
 };
 
 export const buttonStyles = StyleSheet.create({

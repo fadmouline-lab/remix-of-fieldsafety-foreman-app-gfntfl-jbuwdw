@@ -31,13 +31,13 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 60,
+    paddingTop: 80,
     paddingBottom: 120,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 40,
   },
   backButton: {
     marginRight: 12,
@@ -47,21 +47,33 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
   },
+  contentContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  labelContainer: {
+    marginBottom: 16,
+    alignItems: 'center',
+  },
   label: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 12,
+    textAlign: 'center',
   },
-  dropdown: {
+  dropdownContainer: {
     backgroundColor: colors.white,
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 16,
+    overflow: 'hidden',
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.08)',
+    elevation: 2,
   },
   dropdownItem: {
-    paddingVertical: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
@@ -73,10 +85,10 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   dropdownItemSelected: {
-    backgroundColor: colors.primaryLight,
+    backgroundColor: colors.primary,
   },
   selectedText: {
-    color: colors.primary,
+    color: colors.white,
     fontWeight: '600',
   },
   loadingContainer: {
@@ -84,11 +96,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
   emptyText: {
     fontSize: 16,
     color: colors.textSecondary,
     textAlign: 'center',
-    marginTop: 20,
+    lineHeight: 24,
   },
   bottomButtonContainer: {
     position: 'absolute',
@@ -187,7 +205,10 @@ export default function HaulingDumpstersPage0Screen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.scrollContent}>
+      <ScrollView 
+        style={styles.scrollContent}
+        contentContainerStyle={companies.length === 0 ? { flex: 1 } : undefined}
+      >
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
@@ -203,33 +224,39 @@ export default function HaulingDumpstersPage0Screen() {
           <Text style={styles.headerTitle}>Hauling Dumpsters</Text>
         </View>
 
-        <Text style={styles.label}>Select Hauling Company</Text>
         {companies.length === 0 ? (
-          <Text style={styles.emptyText}>
-            No active hauling companies available. Please contact your administrator.
-          </Text>
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>
+              No active hauling companies available. Please contact your administrator.
+            </Text>
+          </View>
         ) : (
-          <View style={styles.dropdown}>
-            {companies.map((company, index) => (
-              <TouchableOpacity
-                key={company.id}
-                style={[
-                  styles.dropdownItem,
-                  index === companies.length - 1 && styles.dropdownItemLast,
-                  selectedCompany?.id === company.id && styles.dropdownItemSelected,
-                ]}
-                onPress={() => setSelectedCompany(company)}
-              >
-                <Text
+          <View style={styles.contentContainer}>
+            <View style={styles.labelContainer}>
+              <Text style={styles.label}>Select Hauling Company</Text>
+            </View>
+            <View style={styles.dropdownContainer}>
+              {companies.map((company, index) => (
+                <TouchableOpacity
+                  key={company.id}
                   style={[
-                    styles.dropdownItemText,
-                    selectedCompany?.id === company.id && styles.selectedText,
+                    styles.dropdownItem,
+                    index === companies.length - 1 && styles.dropdownItemLast,
+                    selectedCompany?.id === company.id && styles.dropdownItemSelected,
                   ]}
+                  onPress={() => setSelectedCompany(company)}
                 >
-                  {company.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <Text
+                    style={[
+                      styles.dropdownItemText,
+                      selectedCompany?.id === company.id && styles.selectedText,
+                    ]}
+                  >
+                    {company.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
         )}
       </ScrollView>
