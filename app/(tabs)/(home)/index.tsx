@@ -213,7 +213,7 @@ export default function HomeScreen() {
       if (formId === 'extra-work') {
         router.push('/extra-work-ticket-1');
       } else if (formId === 'hauling') {
-        router.push('/hauling-dumpsters-1');
+        router.push('/hauling-dumpsters-0');
       }
       // Safety forms
       else if (formId === 'equipment-inspection') {

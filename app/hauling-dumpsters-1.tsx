@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { IconSymbol } from '@/components/IconSymbol';
 import {
   View,
   Text,
@@ -8,191 +9,417 @@ import {
   TouchableOpacity,
   Platform,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
-import { IconSymbol } from '@/components/IconSymbol';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 
-interface DumpsterQuantities {
-  [key: string]: number;
+type DumpsterType = 'Rubbish' | 'Lead' | 'Concrete' | 'Dirt';
+
+interface DumpsterData {
+  quantity: number;
+  extraWorkAnswer: 'yes' | 'no' | null;
+  extraWorkQuantity: number;
 }
 
-const dumpsterTypes = [
-  'Rubbish',
-  'Heavy',
-  'Concrete',
-  'Scrap',
-  'ACM',
-  'Lead',
-];
+type DumpsterQuantities = Record<DumpsterType, DumpsterData>;
+
+const DUMPSTER_TYPES: DumpsterType[] = ['Rubbish', 'Lead', 'Concrete', 'Dirt'];
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 60 : 20,
+    paddingBottom: 15,
+    backgroundColor: colors.background,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  backButton: {
+    marginRight: 15,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  content: {
+    flex: 1,
+    padding: 20,
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: colors.white,
+    borderRadius: 8,
+    padding: 4,
+    marginBottom: 24,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderRadius: 6,
+  },
+  activeTab: {
+    backgroundColor: colors.primary,
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  activeTabText: {
+    color: colors.white,
+  },
+  dumpsterCard: {
+    backgroundColor: colors.white,
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  dumpsterHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  dumpsterName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  quantityControl: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  quantityButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  quantityButtonDisabled: {
+    backgroundColor: colors.disabled,
+  },
+  quantityText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+    marginHorizontal: 16,
+    minWidth: 30,
+    textAlign: 'center',
+  },
+  extraWorkSection: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  extraWorkQuestion: {
+    fontSize: 14,
+    color: colors.text,
+    marginBottom: 8,
+  },
+  extraWorkButtons: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  extraWorkButton: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+  },
+  extraWorkButtonActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  extraWorkButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  extraWorkButtonTextActive: {
+    color: colors.white,
+  },
+  extraWorkQuantityRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  extraWorkLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  footer: {
+    padding: 20,
+    backgroundColor: colors.background,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  nextButton: {
+    backgroundColor: colors.primary,
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  nextButtonDisabled: {
+    backgroundColor: colors.disabled,
+  },
+  nextButtonText: {
+    color: colors.white,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});
 
 export default function HaulingDumpstersPage1Screen() {
   const router = useRouter();
-  const [addExpanded, setAddExpanded] = useState(false);
-  const [replaceExpanded, setReplaceExpanded] = useState(false);
-  
-  const [addQuantities, setAddQuantities] = useState<DumpsterQuantities>(
-    dumpsterTypes.reduce((acc, type) => ({ ...acc, [type]: 0 }), {})
-  );
-  
-  const [replaceQuantities, setReplaceQuantities] = useState<DumpsterQuantities>(
-    dumpsterTypes.reduce((acc, type) => ({ ...acc, [type]: 0 }), {})
-  );
+  const params = useLocalSearchParams();
+  const haulingCompany = params.haulingCompany as string;
 
-  const handleQuantityChange = (
-    section: 'add' | 'replace',
-    type: string,
-    delta: number
-  ) => {
-    if (section === 'add') {
-      setAddQuantities((prev) => ({
-        ...prev,
-        [type]: Math.max(0, prev[type] + delta),
-      }));
-    } else {
-      setReplaceQuantities((prev) => ({
-        ...prev,
-        [type]: Math.max(0, prev[type] + delta),
-      }));
-    }
+  const [mode, setMode] = useState<'add' | 'replace'>('add');
+  const [dumpsters, setDumpsters] = useState<DumpsterQuantities>({
+    Rubbish: { quantity: 0, extraWorkAnswer: null, extraWorkQuantity: 1 },
+    Lead: { quantity: 0, extraWorkAnswer: null, extraWorkQuantity: 1 },
+    Concrete: { quantity: 0, extraWorkAnswer: null, extraWorkQuantity: 1 },
+    Dirt: { quantity: 0, extraWorkAnswer: null, extraWorkQuantity: 1 },
+  });
+
+  const handleQuantityChange = (type: DumpsterType, delta: number) => {
+    setDumpsters((prev) => {
+      const newQuantity = Math.max(0, prev[type].quantity + delta);
+      const newData = { ...prev[type], quantity: newQuantity };
+      
+      // Reset extra work data if quantity becomes 0
+      if (newQuantity === 0) {
+        newData.extraWorkAnswer = null;
+        newData.extraWorkQuantity = 1;
+      }
+      
+      // Cap extra work quantity if total quantity decreased
+      if (newData.extraWorkAnswer === 'yes' && newData.extraWorkQuantity > newQuantity) {
+        newData.extraWorkQuantity = Math.max(1, newQuantity);
+      }
+      
+      return { ...prev, [type]: newData };
+    });
   };
 
+  const handleExtraWorkAnswer = (type: DumpsterType, answer: 'yes' | 'no') => {
+    setDumpsters((prev) => ({
+      ...prev,
+      [type]: {
+        ...prev[type],
+        extraWorkAnswer: answer,
+        extraWorkQuantity: answer === 'yes' ? 1 : 1,
+      },
+    }));
+  };
+
+  const handleExtraWorkQuantityChange = (type: DumpsterType, delta: number) => {
+    setDumpsters((prev) => {
+      const maxQuantity = prev[type].quantity;
+      const newExtraQuantity = Math.max(1, Math.min(maxQuantity, prev[type].extraWorkQuantity + delta));
+      
+      return {
+        ...prev,
+        [type]: { ...prev[type], extraWorkQuantity: newExtraQuantity },
+      };
+    });
+  };
+
+  const hasAnyDumpsters = Object.values(dumpsters).some((d) => d.quantity > 0);
+
   const handleNext = () => {
-    console.log('Navigating to Hauling Dumpsters Summary');
-    console.log('Add quantities:', addQuantities);
-    console.log('Replace quantities:', replaceQuantities);
-    
+    if (!hasAnyDumpsters) return;
+
     router.push({
       pathname: '/hauling-dumpsters-2',
       params: {
-        addQuantities: JSON.stringify(addQuantities),
-        replaceQuantities: JSON.stringify(replaceQuantities),
+        haulingCompany,
+        mode,
+        dumpsters: JSON.stringify(dumpsters),
       },
     });
   };
 
-  const renderQuantityControl = (
-    section: 'add' | 'replace',
-    type: string,
-    quantity: number
-  ) => (
-    <View key={type} style={styles.quantityRow}>
-      <Text style={styles.dumpsterType}>{type}</Text>
-      <View style={styles.quantityControl}>
-        <TouchableOpacity
-          style={styles.quantityButton}
-          onPress={() => handleQuantityChange(section, type, -1)}
-          activeOpacity={0.7}
-        >
-          <IconSymbol
-            ios_icon_name="minus.circle.fill"
-            android_material_icon_name="remove-circle"
-            size={32}
-            color={colors.primary}
-          />
-        </TouchableOpacity>
-        
-        <Text style={styles.quantityValue}>{quantity}</Text>
-        
-        <TouchableOpacity
-          style={styles.quantityButton}
-          onPress={() => handleQuantityChange(section, type, 1)}
-          activeOpacity={0.7}
-        >
-          <IconSymbol
-            ios_icon_name="plus.circle.fill"
-            android_material_icon_name="add-circle"
-            size={32}
-            color={colors.primary}
-          />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+        >
           <IconSymbol
             ios_icon_name="chevron.left"
             android_material_icon_name="arrow-back"
             size={24}
-            color={colors.text}
+            color={colors.primary}
           />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Hauling Dumpsters</Text>
-        <View style={styles.placeholder} />
       </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={styles.description}>
-          Request dumpsters to be added or replaced.
-        </Text>
+      <ScrollView style={styles.content}>
+        <View style={styles.tabContainer}>
+          <TouchableOpacity
+            style={[styles.tab, mode === 'add' && styles.activeTab]}
+            onPress={() => setMode('add')}
+          >
+            <Text style={[styles.tabText, mode === 'add' && styles.activeTabText]}>
+              Add Dumpsters
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, mode === 'replace' && styles.activeTab]}
+            onPress={() => setMode('replace')}
+          >
+            <Text style={[styles.tabText, mode === 'replace' && styles.activeTabText]}>
+              Replace Dumpsters
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-        {/* Add Dumpsters Card */}
-        <TouchableOpacity
-          style={styles.expandableCard}
-          onPress={() => setAddExpanded(!addExpanded)}
-          activeOpacity={0.7}
-        >
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Add Dumpsters</Text>
-            <IconSymbol
-              ios_icon_name={addExpanded ? 'chevron.up' : 'chevron.down'}
-              android_material_icon_name={
-                addExpanded ? 'keyboard-arrow-up' : 'keyboard-arrow-down'
-              }
-              size={24}
-              color={colors.text}
-            />
-          </View>
-        </TouchableOpacity>
+        {DUMPSTER_TYPES.map((type) => (
+          <View key={type} style={styles.dumpsterCard}>
+            <View style={styles.dumpsterHeader}>
+              <Text style={styles.dumpsterName}>{type}</Text>
+              <View style={styles.quantityControl}>
+                <TouchableOpacity
+                  style={[
+                    styles.quantityButton,
+                    dumpsters[type].quantity === 0 && styles.quantityButtonDisabled,
+                  ]}
+                  onPress={() => handleQuantityChange(type, -1)}
+                  disabled={dumpsters[type].quantity === 0}
+                >
+                  <IconSymbol
+                    ios_icon_name="minus"
+                    android_material_icon_name="remove"
+                    size={20}
+                    color={colors.white}
+                  />
+                </TouchableOpacity>
+                <Text style={styles.quantityText}>{dumpsters[type].quantity}</Text>
+                <TouchableOpacity
+                  style={styles.quantityButton}
+                  onPress={() => handleQuantityChange(type, 1)}
+                >
+                  <IconSymbol
+                    ios_icon_name="plus"
+                    android_material_icon_name="add"
+                    size={20}
+                    color={colors.white}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
 
-        {addExpanded && (
-          <View style={styles.expandedContent}>
-            {dumpsterTypes.map((type) =>
-              renderQuantityControl('add', type, addQuantities[type])
+            {dumpsters[type].quantity > 0 && (
+              <View style={styles.extraWorkSection}>
+                <Text style={styles.extraWorkQuestion}>
+                  Are any of these dumpsters for extra work?
+                </Text>
+                <View style={styles.extraWorkButtons}>
+                  <TouchableOpacity
+                    style={[
+                      styles.extraWorkButton,
+                      dumpsters[type].extraWorkAnswer === 'yes' && styles.extraWorkButtonActive,
+                    ]}
+                    onPress={() => handleExtraWorkAnswer(type, 'yes')}
+                  >
+                    <Text
+                      style={[
+                        styles.extraWorkButtonText,
+                        dumpsters[type].extraWorkAnswer === 'yes' && styles.extraWorkButtonTextActive,
+                      ]}
+                    >
+                      Yes
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.extraWorkButton,
+                      dumpsters[type].extraWorkAnswer === 'no' && styles.extraWorkButtonActive,
+                    ]}
+                    onPress={() => handleExtraWorkAnswer(type, 'no')}
+                  >
+                    <Text
+                      style={[
+                        styles.extraWorkButtonText,
+                        dumpsters[type].extraWorkAnswer === 'no' && styles.extraWorkButtonTextActive,
+                      ]}
+                    >
+                      No
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {dumpsters[type].extraWorkAnswer === 'yes' && (
+                  <View style={styles.extraWorkQuantityRow}>
+                    <Text style={styles.extraWorkLabel}>Extra work quantity</Text>
+                    <View style={styles.quantityControl}>
+                      <TouchableOpacity
+                        style={[
+                          styles.quantityButton,
+                          dumpsters[type].extraWorkQuantity === 1 && styles.quantityButtonDisabled,
+                        ]}
+                        onPress={() => handleExtraWorkQuantityChange(type, -1)}
+                        disabled={dumpsters[type].extraWorkQuantity === 1}
+                      >
+                        <IconSymbol
+                          ios_icon_name="minus"
+                          android_material_icon_name="remove"
+                          size={20}
+                          color={colors.white}
+                        />
+                      </TouchableOpacity>
+                      <Text style={styles.quantityText}>{dumpsters[type].extraWorkQuantity}</Text>
+                      <TouchableOpacity
+                        style={[
+                          styles.quantityButton,
+                          dumpsters[type].extraWorkQuantity >= dumpsters[type].quantity &&
+                            styles.quantityButtonDisabled,
+                        ]}
+                        onPress={() => handleExtraWorkQuantityChange(type, 1)}
+                        disabled={dumpsters[type].extraWorkQuantity >= dumpsters[type].quantity}
+                      >
+                        <IconSymbol
+                          ios_icon_name="plus"
+                          android_material_icon_name="add"
+                          size={20}
+                          color={colors.white}
+                        />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+              </View>
             )}
           </View>
-        )}
-
-        {/* Replace Dumpsters Card */}
-        <TouchableOpacity
-          style={styles.expandableCard}
-          onPress={() => setReplaceExpanded(!replaceExpanded)}
-          activeOpacity={0.7}
-        >
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Replace Dumpsters</Text>
-            <IconSymbol
-              ios_icon_name={replaceExpanded ? 'chevron.up' : 'chevron.down'}
-              android_material_icon_name={
-                replaceExpanded ? 'keyboard-arrow-up' : 'keyboard-arrow-down'
-              }
-              size={24}
-              color={colors.text}
-            />
-          </View>
-        </TouchableOpacity>
-
-        {replaceExpanded && (
-          <View style={styles.expandedContent}>
-            {dumpsterTypes.map((type) =>
-              renderQuantityControl('replace', type, replaceQuantities[type])
-            )}
-          </View>
-        )}
+        ))}
       </ScrollView>
 
       <View style={styles.footer}>
         <TouchableOpacity
-          style={styles.nextButton}
+          style={[styles.nextButton, !hasAnyDumpsters && styles.nextButtonDisabled]}
           onPress={handleNext}
-          activeOpacity={0.7}
+          disabled={!hasAnyDumpsters}
         >
           <Text style={styles.nextButtonText}>NEXT</Text>
         </TouchableOpacity>
@@ -200,127 +427,3 @@ export default function HaulingDumpstersPage1Screen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-    paddingTop: Platform.OS === 'android' ? 48 : 60,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-  },
-  backButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  placeholder: {
-    width: 40,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 120,
-  },
-  description: {
-    fontSize: 16,
-    color: colors.text,
-    marginBottom: 20,
-    fontWeight: '500',
-  },
-  expandableCard: {
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 16,
-    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
-    elevation: 3,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  expandedContent: {
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    marginTop: -8,
-    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
-    elevation: 3,
-  },
-  quantityRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    backgroundColor: colors.background,
-    borderRadius: 8,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  dumpsterType: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    flex: 1,
-  },
-  quantityControl: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  quantityButton: {
-    padding: 4,
-  },
-  quantityValue: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-    minWidth: 30,
-    textAlign: 'center',
-  },
-  footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: colors.card,
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    boxShadow: '0px -2px 8px rgba(0, 0, 0, 0.1)',
-    elevation: 8,
-  },
-  nextButton: {
-    backgroundColor: colors.primary,
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  nextButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.card,
-    letterSpacing: 0.5,
-  },
-});

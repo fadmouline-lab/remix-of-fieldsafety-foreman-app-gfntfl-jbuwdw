@@ -27,36 +27,24 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingTop: Platform.OS === 'ios' ? 60 : 20,
     paddingBottom: 15,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.background,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   backButton: {
-    padding: 8,
+    marginRight: 15,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '600',
-    color: '#fff',
-    flex: 1,
-    textAlign: 'center',
-    marginRight: 40,
+    color: colors.text,
   },
   content: {
+    flex: 1,
     padding: 20,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    marginBottom: 32,
   },
   label: {
     fontSize: 16,
@@ -65,7 +53,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   dropdownButton: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 8,
@@ -74,7 +62,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  dropdownText: {
+  dropdownButtonText: {
     fontSize: 16,
     color: colors.text,
   },
@@ -84,12 +72,12 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
     borderRadius: 12,
     width: '80%',
     maxHeight: '60%',
@@ -104,7 +92,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
   },
-  optionButton: {
+  optionItem: {
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
@@ -116,18 +104,23 @@ const styles = StyleSheet.create({
   selectedOption: {
     backgroundColor: colors.primaryLight,
   },
+  footer: {
+    padding: 20,
+    backgroundColor: colors.background,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
   nextButton: {
     backgroundColor: colors.primary,
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
-    marginTop: 32,
   },
   nextButtonDisabled: {
     backgroundColor: colors.disabled,
   },
   nextButtonText: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -154,18 +147,18 @@ export default function HaulingDumpstersPage0Screen() {
           style={styles.backButton}
           onPress={() => router.back()}
         >
-          <IconSymbol name="chevron.left" size={24} color="#fff" />
+          <IconSymbol
+            ios_icon_name="chevron.left"
+            android_material_icon_name="arrow-back"
+            size={24}
+            color={colors.primary}
+          />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Hauling Dumpsters</Text>
       </View>
 
       <ScrollView style={styles.content}>
-        <Text style={styles.title}>Select Hauling Company</Text>
-        <Text style={styles.subtitle}>
-          Choose the company that will handle this hauling request
-        </Text>
-
-        <Text style={styles.label}>Hauling Company</Text>
+        <Text style={styles.label}>Select Hauling Company</Text>
         <TouchableOpacity
           style={styles.dropdownButton}
           onPress={() => setShowDropdown(true)}
@@ -173,15 +166,22 @@ export default function HaulingDumpstersPage0Screen() {
           <Text
             style={
               selectedCompany
-                ? styles.dropdownText
+                ? styles.dropdownButtonText
                 : styles.dropdownPlaceholder
             }
           >
-            {selectedCompany || 'Select a company...'}
+            {selectedCompany || 'Choose a company...'}
           </Text>
-          <IconSymbol name="chevron.down" size={20} color={colors.textSecondary} />
+          <IconSymbol
+            ios_icon_name="chevron.down"
+            android_material_icon_name="arrow-drop-down"
+            size={20}
+            color={colors.textSecondary}
+          />
         </TouchableOpacity>
+      </ScrollView>
 
+      <View style={styles.footer}>
         <TouchableOpacity
           style={[
             styles.nextButton,
@@ -192,7 +192,7 @@ export default function HaulingDumpstersPage0Screen() {
         >
           <Text style={styles.nextButtonText}>NEXT</Text>
         </TouchableOpacity>
-      </ScrollView>
+      </View>
 
       <Modal
         visible={showDropdown}
@@ -214,7 +214,7 @@ export default function HaulingDumpstersPage0Screen() {
                 <TouchableOpacity
                   key={company}
                   style={[
-                    styles.optionButton,
+                    styles.optionItem,
                     selectedCompany === company && styles.selectedOption,
                   ]}
                   onPress={() => {
