@@ -35,6 +35,41 @@ export default function PreTaskSelectTasksScreen() {
   const mode = (params.mode as string) || 'CREATE';
   const editingId = params.editingId as string | undefined;
 
+  const preloadSelectedTasks = useCallback(async (availableTasks: PreTaskCard[]) => {
+    const sourceId = mode === 'EDIT' ? editingId : lastSubmittedPtpId;
+    
+    if (!sourceId) {
+      console.log('No source ID for preloading tasks');
+      return;
+    }
+
+    console.log(`Preloading tasks from ${mode} mode, source ID:`, sourceId);
+
+    try {
+      const { data, error } = await supabase
+        .from('submitted_ptp_tasks')
+        .select('pre_task_card_id')
+        .eq('submitted_ptp_id', sourceId)
+        .order('sort_order', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching previous tasks:', error);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        const preTaskCardIds = data.map((t) => t.pre_task_card_id);
+        const preselected = availableTasks.filter((task) =>
+          preTaskCardIds.includes(task.id)
+        );
+        console.log('Preselected tasks:', preselected.length);
+        setSelectedTasks(preselected);
+      }
+    } catch (error) {
+      console.error('Exception preloading tasks:', error);
+    }
+  }, [mode, editingId, lastSubmittedPtpId]);
+
   const loadTasks = useCallback(async () => {
     if (!currentProject) {
       console.log('No current project selected');
@@ -73,42 +108,7 @@ export default function PreTaskSelectTasksScreen() {
     } finally {
       setLoading(false);
     }
-  }, [currentProject, mode]);
-
-  const preloadSelectedTasks = async (availableTasks: PreTaskCard[]) => {
-    const sourceId = mode === 'EDIT' ? editingId : lastSubmittedPtpId;
-    
-    if (!sourceId) {
-      console.log('No source ID for preloading tasks');
-      return;
-    }
-
-    console.log(`Preloading tasks from ${mode} mode, source ID:`, sourceId);
-
-    try {
-      const { data, error } = await supabase
-        .from('submitted_ptp_tasks')
-        .select('pre_task_card_id')
-        .eq('submitted_ptp_id', sourceId)
-        .order('sort_order', { ascending: true });
-
-      if (error) {
-        console.error('Error fetching previous tasks:', error);
-        return;
-      }
-
-      if (data && data.length > 0) {
-        const preTaskCardIds = data.map((t) => t.pre_task_card_id);
-        const preselected = availableTasks.filter((task) =>
-          preTaskCardIds.includes(task.id)
-        );
-        console.log('Preselected tasks:', preselected.length);
-        setSelectedTasks(preselected);
-      }
-    } catch (error) {
-      console.error('Exception preloading tasks:', error);
-    }
-  };
+  }, [currentProject, mode, preloadSelectedTasks]);
 
   useEffect(() => {
     loadTasks();

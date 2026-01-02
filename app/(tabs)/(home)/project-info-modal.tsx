@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -52,11 +52,7 @@ export default function ProjectInfoModal() {
   const [projectInfo, setProjectInfo] = useState<ProjectInfo | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadProjectInfo();
-  }, []);
-
-  const loadProjectInfo = async () => {
+  const loadProjectInfo = useCallback(async () => {
     if (!currentProject || !currentEmployee) {
       console.log('Cannot load project info: missing project or employee');
       setLoading(false);
@@ -173,7 +169,11 @@ export default function ProjectInfoModal() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentProject, currentEmployee]);
+
+  useEffect(() => {
+    loadProjectInfo();
+  }, [loadProjectInfo]);
 
   const handleDownloadDocument = async (bucket: string, path: string, documentName: string) => {
     try {

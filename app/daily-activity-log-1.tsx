@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -42,7 +42,7 @@ export default function DailyActivityLogPage1() {
       console.log('Starting new activity log, clearing form data');
       clearFormData();
     }
-  }, [params.mode, params.editingId]);
+  }, [params.mode, params.editingId, loadActivityLogForEdit, clearFormData]);
 
   const handleNearMissToggle = (value: boolean) => {
     console.log('Near miss toggle changed to:', value);

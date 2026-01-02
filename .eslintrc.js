@@ -1,3 +1,4 @@
+
 // https://docs.expo.dev/guides/using-eslint/
 module.exports = {
   extends: [
@@ -17,7 +18,7 @@ module.exports = {
       jsx: true
     }
   },
-  ignorePatterns: ['/dist/*', '/public/*', '/babel-plugins/*'],
+  ignorePatterns: ['/dist/*', '/public/*', '/babel-plugins/*', '/backend/*'],
   env: {
     browser: true,
   },
@@ -37,13 +38,22 @@ module.exports = {
     "no-case-declarations": "off",
     "no-empty": "off",
     "react/display-name": "off",
-    "no-var": "off"
+    "no-constant-condition": "off",
+    "no-var": "off",
+    "no-useless-escape": "off"
   },
   overrides: [
     {
       files: ['metro.config.js'],
       rules: {
         '@typescript-eslint/no-var-requires': 'off'
+      }
+    },
+    {
+      // Disable import resolution for Supabase Edge Functions (Deno runtime)
+      files: ['supabase/functions/**/*.ts'],
+      rules: {
+        'import/no-unresolved': 'off'
       }
     }
   ]

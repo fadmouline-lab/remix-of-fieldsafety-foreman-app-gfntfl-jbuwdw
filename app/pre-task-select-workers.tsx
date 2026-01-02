@@ -45,6 +45,43 @@ export default function PreTaskSelectWorkersScreen() {
   const mode = (params.mode as string) || 'CREATE';
   const editingId = params.editingId as string | undefined;
 
+  const preloadSelectedWorkers = useCallback(async (availableWorkers: Employee[]) => {
+    const sourceId = mode === 'EDIT' ? editingId : lastSubmittedPtpId;
+    
+    if (!sourceId) {
+      console.log('No source ID for preloading workers');
+      return;
+    }
+
+    console.log(`Preloading workers from ${mode} mode, source ID:`, sourceId);
+
+    try {
+      const { data, error } = await supabase
+        .from('submitted_ptp_workers')
+        .select('employee_id')
+        .eq('submitted_ptp_id', sourceId);
+
+      if (error) {
+        console.error('Error fetching previous workers:', error);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        const employeeIds = data.map((w) => w.employee_id);
+        const preselected = availableWorkers
+          .filter((worker) => employeeIds.includes(worker.id))
+          .map((worker) => ({
+            employee_id: worker.id,
+            full_name: `${worker.first_name} ${worker.last_name}`,
+          }));
+        console.log('Preselected workers:', preselected.length);
+        setSelectedWorkers(preselected);
+      }
+    } catch (error) {
+      console.error('Exception preloading workers:', error);
+    }
+  }, [mode, editingId, lastSubmittedPtpId]);
+
   const loadWorkers = useCallback(async () => {
     if (!currentEmployee) {
       console.log('No current employee');
@@ -95,44 +132,7 @@ export default function PreTaskSelectWorkersScreen() {
     } finally {
       setLoading(false);
     }
-  }, [currentEmployee, mode]);
-
-  const preloadSelectedWorkers = async (availableWorkers: Employee[]) => {
-    const sourceId = mode === 'EDIT' ? editingId : lastSubmittedPtpId;
-    
-    if (!sourceId) {
-      console.log('No source ID for preloading workers');
-      return;
-    }
-
-    console.log(`Preloading workers from ${mode} mode, source ID:`, sourceId);
-
-    try {
-      const { data, error } = await supabase
-        .from('submitted_ptp_workers')
-        .select('employee_id')
-        .eq('submitted_ptp_id', sourceId);
-
-      if (error) {
-        console.error('Error fetching previous workers:', error);
-        return;
-      }
-
-      if (data && data.length > 0) {
-        const employeeIds = data.map((w) => w.employee_id);
-        const preselected = availableWorkers
-          .filter((worker) => employeeIds.includes(worker.id))
-          .map((worker) => ({
-            employee_id: worker.id,
-            full_name: `${worker.first_name} ${worker.last_name}`,
-          }));
-        console.log('Preselected workers:', preselected.length);
-        setSelectedWorkers(preselected);
-      }
-    } catch (error) {
-      console.error('Exception preloading workers:', error);
-    }
-  };
+  }, [currentEmployee, mode, preloadSelectedWorkers]);
 
   const filterAndDisplayWorkers = useCallback(() => {
     let filtered = [...allWorkers];

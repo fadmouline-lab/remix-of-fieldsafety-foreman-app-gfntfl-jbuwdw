@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -125,11 +125,7 @@ export default function HaulingDumpstersPage0Screen() {
   const [companies, setCompanies] = useState<HaulingCompany[]>([]);
   const [selectedCompany, setSelectedCompany] = useState<HaulingCompany | null>(null);
 
-  useEffect(() => {
-    loadHaulingCompanies();
-  }, [currentEmployee]);
-
-  const loadHaulingCompanies = async () => {
+  const loadHaulingCompanies = useCallback(async () => {
     if (!currentEmployee?.org_id) {
       console.log('No org_id available');
       setLoading(false);
@@ -160,7 +156,11 @@ export default function HaulingDumpstersPage0Screen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentEmployee]);
+
+  useEffect(() => {
+    loadHaulingCompanies();
+  }, [loadHaulingCompanies]);
 
   const handleNext = () => {
     if (!selectedCompany) return;
