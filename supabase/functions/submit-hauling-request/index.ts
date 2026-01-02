@@ -21,108 +21,121 @@ serve(async (req) => {
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
+      {
+        global: {
+          headers: { Authorization: authHeader },
+        },
+      }
     );
 
-    // Authenticate user
+    // Authenticate and fetch employee
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
     if (authError || !user) {
-      throw new Error('Unauthorized');
+      throw new Error('Authentication failed');
     }
 
-    // Fetch employee record from authenticated user
     const { data: employee, error: employeeError } = await supabaseClient
       .from('employees')
-      .select('*')
+      .select('id, org_id, first_name, last_name')
       .eq('user_id', user.id)
       .single();
 
     if (employeeError || !employee) {
-      throw new Error('Employee record not found for authenticated user');
+      throw new Error('Employee record not found');
     }
+
+    const org_id = employee.org_id;
+    const submitted_by_employee_id = employee.id;
 
     // Parse request body
-    const { project_id, project_address, hauling_company_id, add_dumpsters, replace_dumpsters } = await req.json();
+    const body = await req.json();
+    const { project_id, project_address, hauling_company_id, add_dumpsters = [], replace_dumpsters = [] } = body;
 
-    // Validate required fields
-    if (!project_id || !project_address || !hauling_company_id) {
-      throw new Error('Missing required fields: project_id, project_address, or hauling_company_id');
+    if (!project_id || !hauling_company_id) {
+      throw new Error('Missing required fields: project_id or hauling_company_id');
     }
 
-    // Default to empty arrays if missing
-    const addDumpsters = add_dumpsters || [];
-    const replaceDumpsters = replace_dumpsters || [];
-
-    // Fetch project name
-    const { data: project, error: projectError } = await supabaseClient
+    // Fetch project and hauling company details
+    const { data: project } = await supabaseClient
       .from('projects')
       .select('name')
       .eq('id', project_id)
       .single();
 
-    if (projectError) {
-      throw new Error('Project not found');
-    }
-
-    // Fetch hauling company details
-    const { data: haulingCompany, error: companyError } = await supabaseClient
+    const { data: haulingCompany } = await supabaseClient
       .from('hauling_companies')
-      .select('*')
+      .select('name, phone_number, email, contact_name')
       .eq('id', hauling_company_id)
       .single();
 
-    if (companyError) {
-      throw new Error('Hauling company not found');
-    }
+    // Build request_payload for backward compatibility
+    const request_payload = {
+      add: add_dumpsters.map((d: any) => ({
+        dumpster_type: d.dumpster_type,
+        quantity: d.quantity,
+      })),
+      replace: replace_dumpsters.map((d: any) => ({
+        dumpster_type: d.dumpster_type,
+        quantity: d.quantity,
+      })),
+    };
 
     // Insert parent hauling_requests row
-    const { data: haulingRequest, error: haulingRequestError } = await supabaseClient
+    const { data: haulingRequest, error: insertError } = await supabaseClient
       .from('hauling_requests')
       .insert({
-        org_id: employee.org_id,
-        project_id: project_id,
-        submitted_by_employee_id: employee.id,
+        org_id,
+        project_id,
+        submitted_by_employee_id,
         submitted_time: new Date().toISOString(),
-        project_address: project_address,
-        request_payload: { add: addDumpsters, replace: replaceDumpsters },
+        project_address,
+        request_payload,
         status: 'pending',
-        hauling_company_id: hauling_company_id,
         revision: 1,
+        hauling_company_id,
       })
-      .select('*')
+      .select()
       .single();
 
-    if (haulingRequestError) {
-      throw new Error(`Failed to create hauling request: ${haulingRequestError.message}`);
+    if (insertError || !haulingRequest) {
+      throw new Error(`Failed to insert hauling request: ${insertError?.message}`);
     }
 
     // Insert child hauling_request_items rows
     const itemsToInsert = [];
 
-    for (const dumpster of addDumpsters) {
-      if (dumpster.quantity > 0) {
+    for (const item of add_dumpsters) {
+      if (item.quantity > 0) {
+        const quantity_total = item.quantity;
+        const quantity_extra_work = item.extra_work_quantity || 0;
+        const quantity_normal_work = quantity_total - quantity_extra_work;
+
         itemsToInsert.push({
           hauling_request_id: haulingRequest.id,
-          org_id: employee.org_id,
-          project_id: project_id,
-          dumpster_type: dumpster.dumpster_type,
-          quantity_total: dumpster.quantity,
-          quantity_extra_work: dumpster.extra_work_quantity || 0,
-          // Do NOT set quantity_normal_work - trigger will compute it
+          org_id,
+          project_id,
+          dumpster_type: item.dumpster_type,
+          quantity_total,
+          quantity_extra_work,
+          quantity_normal_work,
         });
       }
     }
 
-    for (const dumpster of replaceDumpsters) {
-      if (dumpster.quantity > 0) {
+    for (const item of replace_dumpsters) {
+      if (item.quantity > 0) {
+        const quantity_total = item.quantity;
+        const quantity_extra_work = item.extra_work_quantity || 0;
+        const quantity_normal_work = quantity_total - quantity_extra_work;
+
         itemsToInsert.push({
           hauling_request_id: haulingRequest.id,
-          org_id: employee.org_id,
-          project_id: project_id,
-          dumpster_type: dumpster.dumpster_type,
-          quantity_total: dumpster.quantity,
-          quantity_extra_work: dumpster.extra_work_quantity || 0,
-          // Do NOT set quantity_normal_work - trigger will compute it
+          org_id,
+          project_id,
+          dumpster_type: item.dumpster_type,
+          quantity_total,
+          quantity_extra_work,
+          quantity_normal_work,
         });
       }
     }
@@ -133,38 +146,39 @@ serve(async (req) => {
         .insert(itemsToInsert);
 
       if (itemsError) {
-        throw new Error(`Failed to create hauling request items: ${itemsError.message}`);
+        throw new Error(`Failed to insert hauling request items: ${itemsError.message}`);
       }
     }
 
-    // Call N8N webhook
-    const n8nUrl = Deno.env.get('N8N_HAULING_WEBHOOK_URL');
+    // Trigger N8N webhook
+    const webhookUrl = Deno.env.get('N8N_HAULING_WEBHOOK_URL');
     let webhookSuccess = false;
 
-    if (n8nUrl) {
+    if (webhookUrl) {
       try {
-        const n8nResponse = await fetch(n8nUrl, {
+        const webhookPayload = {
+          hauling_request_id: haulingRequest.id,
+          project_name: project?.name || 'Unknown Project',
+          project_address,
+          submitting_user_name: `${employee.first_name} ${employee.last_name}`,
+          submission_timestamp: haulingRequest.submitted_time,
+          request_payload,
+          hauling_company_id,
+          hauling_company_name: haulingCompany?.name || '',
+          hauling_company_phone_number: haulingCompany?.phone_number || '',
+          hauling_company_email: haulingCompany?.email || '',
+          hauling_company_contact_name: haulingCompany?.contact_name || '',
+        };
+
+        const webhookResponse = await fetch(webhookUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            hauling_request_id: haulingRequest.id,
-            project_name: project.name,
-            project_address: project_address,
-            submitting_user_name: `${employee.first_name} ${employee.last_name}`,
-            submission_timestamp: haulingRequest.submitted_time,
-            request_payload: haulingRequest.request_payload,
-            hauling_company_id: haulingCompany.id,
-            hauling_company_name: haulingCompany.name,
-            hauling_company_phone_number: haulingCompany.phone_number,
-            hauling_company_email: haulingCompany.email,
-            hauling_company_contact_name: haulingCompany.contact_name,
-          }),
+          body: JSON.stringify(webhookPayload),
         });
 
-        webhookSuccess = n8nResponse.ok;
+        webhookSuccess = webhookResponse.ok;
       } catch (webhookError) {
-        console.error('Webhook error:', webhookError);
-        webhookSuccess = false;
+        console.error('Webhook failed:', webhookError);
       }
     }
 
@@ -176,14 +190,27 @@ serve(async (req) => {
       .eq('id', haulingRequest.id);
 
     return new Response(
-      JSON.stringify({ success: true, hauling_request_id: haulingRequest.id, status: finalStatus }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({
+        success: true,
+        hauling_request_id: haulingRequest.id,
+        status: finalStatus,
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      }
     );
   } catch (error) {
     console.error('Error:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({
+        success: false,
+        error: error.message,
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      }
     );
   }
 });
