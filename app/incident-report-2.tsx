@@ -383,8 +383,10 @@ export default function IncidentReportPage2() {
       params: {
         ...params,
         selectedEmployees: JSON.stringify(selectedEmployees),
+        employees: JSON.stringify(employees), // Pass full employees array
         subcontractorInjured: subcontractorInjured || '',
         subcontractors: JSON.stringify(subcontractorEntries),
+        subcontractorsList: JSON.stringify(subcontractors), // Pass full subcontractors array
         otherInjured: JSON.stringify(otherInjured),
       },
     });

@@ -393,9 +393,11 @@ export default function IncidentReportPage3() {
         incidentTime: incidentTime.toISOString(),
         specificArea,
         selectedTasks: JSON.stringify(selectedTasks),
+        tasks: JSON.stringify(tasks), // Pass full tasks array
         firstAidProvided: firstAidProvided || '',
         anyWitnesses: anyWitnesses || '',
         witnesses: JSON.stringify(witnesses),
+        witnessEmployees: JSON.stringify(employees), // Pass employees for witness mapping
       },
     });
   };

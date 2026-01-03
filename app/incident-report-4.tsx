@@ -295,8 +295,10 @@ export default function IncidentReportPage4() {
         ...params,
         equipmentInvolved: equipmentInvolved || '',
         selectedEquipment: JSON.stringify(selectedEquipment),
+        equipmentList: JSON.stringify(equipment), // Pass full equipment array
         materialsInvolved: materialsInvolved || '',
         selectedMaterials: JSON.stringify(selectedMaterials),
+        materialsList: JSON.stringify(materials), // Pass full materials array
         bodyPartDescription,
       },
     });

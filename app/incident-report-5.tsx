@@ -1,16 +1,16 @@
 
-import { colors } from '@/styles/commonStyles';
-import { useRouter, useLocalSearchParams } from 'expo-router';
 import React from 'react';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
   Alert,
 } from 'react-native';
+import { useAuth } from '@/contexts/AuthContext';
+import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 
 const styles = StyleSheet.create({
@@ -43,56 +43,33 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: 24,
     backgroundColor: colors.card,
-    padding: 16,
     borderRadius: 12,
+    padding: 16,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '600',
     color: colors.text,
     marginBottom: 12,
   },
   row: {
     marginBottom: 12,
   },
-  rowLabel: {
+  label: {
     fontSize: 14,
-    fontWeight: '600',
     color: colors.textSecondary,
     marginBottom: 4,
   },
-  rowValue: {
+  value: {
     fontSize: 16,
     color: colors.text,
-  },
-  photoGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 8,
-  },
-  photoThumbnail: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
-  },
-  chip: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginRight: 6,
-    marginBottom: 6,
-  },
-  chipText: {
-    color: '#FFFFFF',
-    fontSize: 14,
     fontWeight: '500',
   },
-  chipContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 4,
+  listItem: {
+    fontSize: 16,
+    color: colors.text,
+    marginBottom: 4,
+    marginLeft: 8,
   },
   submitButton: {
     position: 'absolute',
@@ -113,226 +90,250 @@ const styles = StyleSheet.create({
 export default function IncidentReportPage5() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { currentEmployee, currentProject } = useAuth();
 
+  // Parse data from previous pages
+  const need911 = params.need911 as string;
+  const called911 = params.called911 as string;
   const photos = params.photos ? JSON.parse(params.photos as string) : [];
-  const selectedEmployees = params.selectedEmployees
-    ? JSON.parse(params.selectedEmployees as string)
-    : [];
-  const subcontractors = params.subcontractors
-    ? JSON.parse(params.subcontractors as string)
-    : [];
+  
+  // Injured employees
+  const selectedEmployees = params.selectedEmployees ? JSON.parse(params.selectedEmployees as string) : [];
+  const employees = params.employees ? JSON.parse(params.employees as string) : [];
+  
+  // Subcontractors
+  const subcontractorInjured = params.subcontractorInjured as string;
+  const subcontractorEntries = params.subcontractors ? JSON.parse(params.subcontractors as string) : [];
+  const subcontractorsList = params.subcontractorsList ? JSON.parse(params.subcontractorsList as string) : [];
+  
+  // Other injured
   const otherInjured = params.otherInjured ? JSON.parse(params.otherInjured as string) : [];
+  
+  // Incident details
+  const incidentTime = params.incidentTime as string;
+  const specificArea = params.specificArea as string;
   const selectedTasks = params.selectedTasks ? JSON.parse(params.selectedTasks as string) : [];
+  const tasks = params.tasks ? JSON.parse(params.tasks as string) : [];
+  const firstAidProvided = params.firstAidProvided as string;
+  
+  // Witnesses
+  const anyWitnesses = params.anyWitnesses as string;
   const witnesses = params.witnesses ? JSON.parse(params.witnesses as string) : [];
-  const selectedEquipment = params.selectedEquipment
-    ? JSON.parse(params.selectedEquipment as string)
-    : [];
-  const selectedMaterials = params.selectedMaterials
-    ? JSON.parse(params.selectedMaterials as string)
-    : [];
+  const witnessEmployees = params.witnessEmployees ? JSON.parse(params.witnessEmployees as string) : [];
+  
+  // Equipment and materials
+  const equipmentInvolved = params.equipmentInvolved as string;
+  const selectedEquipment = params.selectedEquipment ? JSON.parse(params.selectedEquipment as string) : [];
+  const equipmentList = params.equipmentList ? JSON.parse(params.equipmentList as string) : [];
+  
+  const materialsInvolved = params.materialsInvolved as string;
+  const selectedMaterials = params.selectedMaterials ? JSON.parse(params.selectedMaterials as string) : [];
+  const materialsList = params.materialsList ? JSON.parse(params.materialsList as string) : [];
+  
+  const bodyPartDescription = params.bodyPartDescription as string;
 
-  const formatTime = (isoString: string) => {
+  // Mapping functions to resolve IDs to names
+  const getEmployeeName = (id: string): string => {
+    const employee = employees.find((e: any) => e.id === id);
+    return employee ? employee.name : 'Unknown Employee';
+  };
+
+  const getTaskName = (id: string): string => {
+    const task = tasks.find((t: any) => t.id === id);
+    return task ? task.name : 'Unknown Task';
+  };
+
+  const getEquipmentName = (id: string): string => {
+    const equipment = equipmentList.find((e: any) => e.id === id);
+    return equipment ? equipment.name : 'Unknown Equipment';
+  };
+
+  const getMaterialName = (id: string): string => {
+    const material = materialsList.find((m: any) => m.id === id);
+    return material ? material.name : 'Unknown Material';
+  };
+
+  const getSubcontractorName = (id: string): string => {
+    const subcontractor = subcontractorsList.find((s: any) => s.id === id);
+    return subcontractor ? subcontractor.name : 'Unknown Subcontractor';
+  };
+
+  const getWitnessEmployeeName = (id: string): string => {
+    const employee = witnessEmployees.find((e: any) => e.id === id);
+    return employee ? employee.name : 'Unknown Employee';
+  };
+
+  const formatTime = (isoString: string): string => {
     if (!isoString) return 'N/A';
     const date = new Date(isoString);
     return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   };
 
-  const handleSubmit = () => {
-    Alert.alert('Success', 'Injury report submitted successfully', [
-      {
-        text: 'OK',
-        onPress: () => router.push('/(tabs)/(home)'),
-      },
-    ]);
+  const handleBack = () => {
+    router.back();
   };
 
-  const handleBack = () => {
-    router.push({
-      pathname: '/incident-report-4',
-      params: {
-        need911: params.need911 as string,
-        called911: params.called911 as string,
-        photos: params.photos as string,
-        selectedEmployees: params.selectedEmployees as string,
-        subcontractorInjured: params.subcontractorInjured as string,
-        subcontractors: params.subcontractors as string,
-        otherInjured: params.otherInjured as string,
-        incidentTime: params.incidentTime as string,
-        specificArea: params.specificArea as string,
-        selectedTasks: params.selectedTasks as string,
-        firstAidProvided: params.firstAidProvided as string,
-        anyWitnesses: params.anyWitnesses as string,
-        witnesses: params.witnesses as string,
-        equipmentInvolved: params.equipmentInvolved as string,
-        selectedEquipment: params.selectedEquipment as string,
-        materialsInvolved: params.materialsInvolved as string,
-        selectedMaterials: params.selectedMaterials as string,
-        bodyPartDescription: params.bodyPartDescription as string,
-      },
-    });
+  const handleSubmit = async () => {
+    // TODO: Backend Integration - Submit incident report to the backend API
+    Alert.alert('Success', 'Incident report submitted successfully', [
+      { text: 'OK', onPress: () => router.push('/(tabs)/(home)') }
+    ]);
   };
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-          <IconSymbol 
-            ios_icon_name="chevron.left" 
-            android_material_icon_name="arrow-back" 
-            size={24} 
-            color={colors.primary} 
+          <IconSymbol
+            ios_icon_name="chevron.left"
+            android_material_icon_name="arrow-back"
+            size={24}
+            color={colors.primary}
           />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Review Injury Report</Text>
       </View>
 
       <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+        {/* Emergency & Photos */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Emergency Response</Text>
+          <Text style={styles.sectionTitle}>Emergency & Photos</Text>
           <View style={styles.row}>
-            <Text style={styles.rowLabel}>Need to call 911?</Text>
-            <Text style={styles.rowValue}>{params.need911 === 'yes' ? 'Yes' : 'No'}</Text>
+            <Text style={styles.label}>Did the injury require 911?</Text>
+            <Text style={styles.value}>{need911 === 'yes' ? 'Yes' : 'No'}</Text>
           </View>
-          {params.need911 === 'yes' && (
+          {need911 === 'yes' && (
             <View style={styles.row}>
-              <Text style={styles.rowLabel}>Called 911?</Text>
-              <Text style={styles.rowValue}>{params.called911 === 'yes' ? 'Yes' : 'No'}</Text>
+              <Text style={styles.label}>Was 911 called?</Text>
+              <Text style={styles.value}>{called911 === 'yes' ? 'Yes' : 'No'}</Text>
             </View>
           )}
+          <View style={styles.row}>
+            <Text style={styles.label}>Photos Attached</Text>
+            <Text style={styles.value}>{photos.length} photo(s)</Text>
+          </View>
         </View>
 
-        {photos.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Photos</Text>
-            <View style={styles.photoGrid}>
-              {photos.map((photo: any) => (
-                <Image key={photo.id} source={{ uri: photo.uri }} style={styles.photoThumbnail} />
-              ))}
-            </View>
-          </View>
-        )}
-
+        {/* Injured People */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Injured People</Text>
+          
           {selectedEmployees.length > 0 && (
             <View style={styles.row}>
-              <Text style={styles.rowLabel}>Employees</Text>
-              <View style={styles.chipContainer}>
-                {selectedEmployees.map((emp: string) => (
-                  <View key={emp} style={styles.chip}>
-                    <Text style={styles.chipText}>{emp}</Text>
-                  </View>
-                ))}
-              </View>
+              <Text style={styles.label}>Injured Employees</Text>
+              {selectedEmployees.map((id: string) => (
+                <Text key={id} style={styles.listItem}>• {getEmployeeName(id)}</Text>
+              ))}
             </View>
           )}
-          {subcontractors.length > 0 && (
+
+          {subcontractorInjured === 'yes' && subcontractorEntries.length > 0 && (
             <View style={styles.row}>
-              <Text style={styles.rowLabel}>Subcontractors</Text>
-              {subcontractors.map((sub: any) => (
-                <Text key={sub.id} style={styles.rowValue}>
-                  {sub.company} - {sub.workerNames}
+              <Text style={styles.label}>Injured Subcontractors</Text>
+              {subcontractorEntries.map((entry: any) => (
+                <Text key={entry.id} style={styles.listItem}>
+                  • {entry.companyId ? getSubcontractorName(entry.companyId) : entry.company} - {entry.workerNames}
                 </Text>
               ))}
             </View>
           )}
-          {otherInjured.some((o: any) => o.name) && (
+
+          {otherInjured.length > 0 && otherInjured.some((entry: any) => entry.name) && (
             <View style={styles.row}>
-              <Text style={styles.rowLabel}>Other injured persons</Text>
-              {otherInjured
-                .filter((o: any) => o.name)
-                .map((o: any) => (
-                  <Text key={o.id} style={styles.rowValue}>
-                    {o.name}
-                  </Text>
-                ))}
+              <Text style={styles.label}>Other Injured Persons</Text>
+              {otherInjured.filter((entry: any) => entry.name).map((entry: any) => (
+                <Text key={entry.id} style={styles.listItem}>• {entry.name}</Text>
+              ))}
             </View>
           )}
         </View>
 
+        {/* Incident Details */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Incident Details</Text>
           <View style={styles.row}>
-            <Text style={styles.rowLabel}>Time of incident</Text>
-            <Text style={styles.rowValue}>{formatTime(params.incidentTime as string)}</Text>
+            <Text style={styles.label}>Time of Incident</Text>
+            <Text style={styles.value}>{formatTime(incidentTime)}</Text>
           </View>
           <View style={styles.row}>
-            <Text style={styles.rowLabel}>Specific area</Text>
-            <Text style={styles.rowValue}>{params.specificArea || 'N/A'}</Text>
+            <Text style={styles.label}>Specific Area</Text>
+            <Text style={styles.value}>{specificArea || 'N/A'}</Text>
           </View>
+          
           {selectedTasks.length > 0 && (
             <View style={styles.row}>
-              <Text style={styles.rowLabel}>Tasks being performed</Text>
-              <View style={styles.chipContainer}>
-                {selectedTasks.map((task: string) => (
-                  <View key={task} style={styles.chip}>
-                    <Text style={styles.chipText}>{task}</Text>
-                  </View>
-                ))}
-              </View>
+              <Text style={styles.label}>Tasks Being Performed</Text>
+              {selectedTasks.map((id: string) => (
+                <Text key={id} style={styles.listItem}>• {getTaskName(id)}</Text>
+              ))}
             </View>
           )}
+
           <View style={styles.row}>
-            <Text style={styles.rowLabel}>First aid provided?</Text>
-            <Text style={styles.rowValue}>
-              {params.firstAidProvided === 'yes' ? 'Yes' : 'No'}
-            </Text>
+            <Text style={styles.label}>First Aid Provided</Text>
+            <Text style={styles.value}>{firstAidProvided === 'yes' ? 'Yes' : 'No'}</Text>
           </View>
+
+          {anyWitnesses === 'yes' && witnesses.length > 0 && (
+            <View style={styles.row}>
+              <Text style={styles.label}>Witnesses</Text>
+              {witnesses.map((witness: any) => {
+                if (witness.isEmployee === 'yes' && witness.employeeId) {
+                  return (
+                    <Text key={witness.id} style={styles.listItem}>
+                      • {getWitnessEmployeeName(witness.employeeId)} (Employee)
+                    </Text>
+                  );
+                } else if (witness.isEmployee === 'no' && witness.name) {
+                  return (
+                    <Text key={witness.id} style={styles.listItem}>
+                      • {witness.name} - {witness.phone}
+                    </Text>
+                  );
+                }
+                return null;
+              })}
+            </View>
+          )}
         </View>
 
-        {witnesses.length > 0 && (
+        {/* Equipment & Materials */}
+        {(equipmentInvolved === 'yes' || materialsInvolved === 'yes') && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Witnesses</Text>
-            {witnesses.map((witness: any) => (
-              <View key={witness.id} style={styles.row}>
-                <Text style={styles.rowValue}>
-                  {witness.isEmployee === 'yes'
-                    ? `Employee: ${witness.employeeName}`
-                    : `${witness.name} - ${witness.phone}`}
-                </Text>
+            <Text style={styles.sectionTitle}>Equipment & Materials</Text>
+            
+            {equipmentInvolved === 'yes' && selectedEquipment.length > 0 && (
+              <View style={styles.row}>
+                <Text style={styles.label}>Equipment Involved</Text>
+                {selectedEquipment.map((id: string) => (
+                  <Text key={id} style={styles.listItem}>• {getEquipmentName(id)}</Text>
+                ))}
               </View>
-            ))}
+            )}
+
+            {materialsInvolved === 'yes' && selectedMaterials.length > 0 && (
+              <View style={styles.row}>
+                <Text style={styles.label}>Materials Involved</Text>
+                {selectedMaterials.map((id: string) => (
+                  <Text key={id} style={styles.listItem}>• {getMaterialName(id)}</Text>
+                ))}
+              </View>
+            )}
           </View>
         )}
 
+        {/* Injury Details */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Equipment and Materials</Text>
-          {selectedEquipment.length > 0 && (
-            <View style={styles.row}>
-              <Text style={styles.rowLabel}>Equipment</Text>
-              <View style={styles.chipContainer}>
-                {selectedEquipment.map((equip: string) => (
-                  <View key={equip} style={styles.chip}>
-                    <Text style={styles.chipText}>{equip}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
-          {selectedMaterials.length > 0 && (
-            <View style={styles.row}>
-              <Text style={styles.rowLabel}>Materials</Text>
-              <View style={styles.chipContainer}>
-                {selectedMaterials.map((mat: string) => (
-                  <View key={mat} style={styles.chip}>
-                    <Text style={styles.chipText}>{mat}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Body Part Affected</Text>
+          <Text style={styles.sectionTitle}>Injury Details</Text>
           <View style={styles.row}>
-            <Text style={styles.rowValue}>{params.bodyPartDescription || 'N/A'}</Text>
+            <Text style={styles.label}>Body Part Affected</Text>
+            <Text style={styles.value}>{bodyPartDescription || 'N/A'}</Text>
           </View>
         </View>
       </ScrollView>
 
       <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-        <Text style={styles.submitButtonText}>Submit Injury Report</Text>
+        <Text style={styles.submitButtonText}>Submit Report</Text>
       </TouchableOpacity>
     </View>
   );
