@@ -27,6 +27,12 @@ interface DumpsterData {
 
 type DumpsterQuantities = Record<DumpsterType, DumpsterData>;
 
+interface DumpsterItem {
+  dumpster_type: string;
+  quantity: number;
+  extra_work_quantity: number;
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -162,6 +168,22 @@ export default function HaulingDumpstersPage2Screen() {
     });
   };
 
+  const convertDumpstersToArray = (dumpsters: DumpsterQuantities): DumpsterItem[] => {
+    const result: DumpsterItem[] = [];
+    
+    Object.entries(dumpsters).forEach(([dumpsterType, data]) => {
+      if (data.quantity > 0) {
+        result.push({
+          dumpster_type: dumpsterType,
+          quantity: data.quantity,
+          extra_work_quantity: data.extraWorkAnswer === 'yes' ? data.extraWorkQuantity : 0,
+        });
+      }
+    });
+    
+    return result;
+  };
+
   const handleSubmit = async () => {
     // Guard: prevent double submissions
     if (loading) {
@@ -174,33 +196,35 @@ export default function HaulingDumpstersPage2Screen() {
     
     try {
       const haulingCompanyId = params.haulingCompanyId as string;
-      const haulingCompanyName = params.haulingCompanyName as string;
-      const haulingCompanyPhone = params.haulingCompanyPhone as string;
-      const haulingCompanyEmail = params.haulingCompanyEmail as string;
       
       const addDumpstersRaw = params.addDumpsters as string;
       const replaceDumpstersRaw = params.replaceDumpsters as string;
       
-      const addDumpsters: DumpsterQuantities = addDumpstersRaw 
+      const addDumpstersObject: DumpsterQuantities = addDumpstersRaw 
         ? JSON.parse(addDumpstersRaw) 
         : {};
-      const replaceDumpsters: DumpsterQuantities = replaceDumpstersRaw 
+
+      const replaceDumpstersObject: DumpsterQuantities = replaceDumpstersRaw 
         ? JSON.parse(replaceDumpstersRaw) 
         : {};
+
+      // Convert objects to arrays that the Edge Function expects
+      const addDumpstersArray = convertDumpstersToArray(addDumpstersObject);
+      const replaceDumpstersArray = convertDumpstersToArray(replaceDumpstersObject);
 
       const payload = {
         project_id: currentProject?.id,
         project_address: projectAddress,
         hauling_company_id: haulingCompanyId,
-        hauling_company_name: haulingCompanyName,
-        hauling_company_phone: haulingCompanyPhone,
-        hauling_company_email: haulingCompanyEmail,
-        add_dumpsters: addDumpsters,
-        replace_dumpsters: replaceDumpsters,
+        add_dumpsters: addDumpstersArray,
+        replace_dumpsters: replaceDumpstersArray,
       };
 
-      console.log('Invoking submit-hauling-request Edge Function with payload:', payload);
+      console.log('Invoking submit-hauling-request Edge Function with payload:', JSON.stringify(payload, null, 2));
+      console.log('Add dumpsters array:', addDumpstersArray);
+      console.log('Replace dumpsters array:', replaceDumpstersArray);
 
+      // TODO: Backend Integration - Call the submit-hauling-request Edge Function
       const { data: response, error: edgeFunctionError } = await supabase.functions.invoke(
         'submit-hauling-request',
         { body: payload }
@@ -211,56 +235,23 @@ export default function HaulingDumpstersPage2Screen() {
 
       if (edgeFunctionError) {
         console.error('Edge Function returned error:', edgeFunctionError);
-        Alert.alert(
-          'Submission Error',
-          `Failed to submit hauling request: ${edgeFunctionError.message}`,
-          [{ text: 'OK' }]
-        );
+        // Still navigate away as per requirements
+        router.replace('/(tabs)/(home)');
         return;
       }
 
       if (response?.success) {
         console.log('Hauling request submitted successfully');
-        Alert.alert(
-          'Success',
-          'Hauling request submitted successfully!',
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                console.log('Navigating back to dashboard');
-                router.replace('/(tabs)/(home)');
-              },
-            },
-          ]
-        );
       } else {
         console.warn('Hauling request submission unclear:', response);
-        Alert.alert(
-          'Warning',
-          response?.message || 'Request submitted but status unclear.',
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                console.log('Navigating back to dashboard after warning');
-                router.replace('/(tabs)/(home)');
-              },
-            },
-          ]
-        );
       }
     } catch (error: any) {
       console.error('Exception during hauling request submission:', error);
-      Alert.alert(
-        'Error',
-        `An unexpected error occurred: ${error?.message || 'Unknown error'}`,
-        [{ text: 'OK' }]
-      );
     } finally {
-      // Always reset loading state, no matter what happened
-      console.log('Resetting loading state');
+      // Always reset loading state and navigate away, no matter what happened
+      console.log('Resetting loading state and navigating to dashboard');
       setLoading(false);
+      router.replace('/(tabs)/(home)');
     }
   };
 
