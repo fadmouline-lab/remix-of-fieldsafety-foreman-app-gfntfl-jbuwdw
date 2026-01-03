@@ -51,7 +51,7 @@ const translations = {
     'forms.equipmentInspection': 'EQUIPMENT INSPECTION',
     'forms.observation': 'OBSERVATION',
     'forms.nearMiss': 'NEAR MISS',
-    'forms.incident': 'INCIDENT',
+    'forms.incident': 'REPORT AN INJURY',
     
     // Completed Forms
     'forms.dailyPreTaskCompleted': 'Daily Pre-Task Checklist',
@@ -99,7 +99,7 @@ const translations = {
     'forms.equipmentInspection': 'INSPECCIÓN DE EQUIPO',
     'forms.observation': 'OBSERVACIÓN',
     'forms.nearMiss': 'CASI ACCIDENTE',
-    'forms.incident': 'INCIDENTE',
+    'forms.incident': 'REPORTAR UNA LESIÓN',
     
     // Completed Forms
     'forms.dailyPreTaskCompleted': 'Lista de Verificación Previa Diaria',
