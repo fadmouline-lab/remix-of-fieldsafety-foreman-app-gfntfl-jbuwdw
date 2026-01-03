@@ -33,6 +33,12 @@ interface CompletedForm {
   display_time: string;
 }
 
+interface HaulingRequest {
+  id: string;
+  submitted_time: string;
+  status: 'pending' | 'sent' | 'failed';
+}
+
 const beforeJobStartForms: FormCard[] = [
   { id: '1', titleKey: 'forms.dailyPreTask' },
 ];
@@ -63,6 +69,8 @@ export default function HomeScreen() {
   const [preTaskModalVisible, setPreTaskModalVisible] = useState(false);
   const [completedForms, setCompletedForms] = useState<CompletedForm[]>([]);
   const [loadingCompletedForms, setLoadingCompletedForms] = useState(false);
+  const [haulingRequests, setHaulingRequests] = useState<HaulingRequest[]>([]);
+  const [loadingHaulingRequests, setLoadingHaulingRequests] = useState(false);
 
   // Redirect to select project if no project selected
   useEffect(() => {
@@ -188,13 +196,45 @@ export default function HomeScreen() {
     }
   }, [currentEmployee, currentProject]);
 
+  const loadHaulingRequests = useCallback(async () => {
+    if (!currentProject) {
+      console.log('Cannot load hauling requests: missing project');
+      return;
+    }
+
+    console.log('Loading hauling requests...');
+    setLoadingHaulingRequests(true);
+
+    try {
+      const { data, error } = await supabase
+        .from('hauling_requests')
+        .select('id, submitted_time, status')
+        .eq('project_id', currentProject.id)
+        .order('submitted_time', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching hauling requests:', error);
+        setHaulingRequests([]);
+      } else {
+        console.log('Hauling requests loaded:', data?.length || 0);
+        setHaulingRequests(data || []);
+      }
+    } catch (error) {
+      console.error('Exception loading hauling requests:', error);
+      setHaulingRequests([]);
+    } finally {
+      setLoadingHaulingRequests(false);
+    }
+  }, [currentProject]);
+
   // Load completed forms when screen is focused
   useFocusEffect(
     useCallback(() => {
       if (currentEmployee && currentProject) {
         loadCompletedForms();
+        loadHaulingRequests();
       }
-    }, [currentEmployee, currentProject, loadCompletedForms])
+    }, [currentEmployee, currentProject, loadCompletedForms, loadHaulingRequests])
   );
 
   const handleFormPress = (formTitle: string, formId: string, tabType: TabType) => {
@@ -305,6 +345,32 @@ export default function HomeScreen() {
       month: 'long',
       day: 'numeric',
     });
+  };
+
+  const getStatusLabel = (status: 'pending' | 'sent' | 'failed') => {
+    switch (status) {
+      case 'pending':
+        return 'Pending';
+      case 'sent':
+        return 'Sent';
+      case 'failed':
+        return 'Failed';
+      default:
+        return 'Unknown';
+    }
+  };
+
+  const getStatusColor = (status: 'pending' | 'sent' | 'failed') => {
+    switch (status) {
+      case 'pending':
+        return '#FFA500';
+      case 'sent':
+        return '#4CAF50';
+      case 'failed':
+        return '#F44336';
+      default:
+        return colors.textSecondary;
+    }
   };
 
   const projectName = currentProject?.name || 'No Project Selected';
@@ -536,11 +602,43 @@ export default function HomeScreen() {
               {t('home.completedForms')}
             </Text>
             
-            <View style={styles.emptyCompletedContainer}>
-              <Text style={styles.emptyCompletedText}>
-                No completed forms in this section yet.
-              </Text>
-            </View>
+            {loadingHaulingRequests ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={styles.loadingText}>Loading completed forms...</Text>
+              </View>
+            ) : haulingRequests.length === 0 ? (
+              <View style={styles.emptyCompletedContainer}>
+                <Text style={styles.emptyCompletedText}>
+                  No completed forms in this section yet.
+                </Text>
+              </View>
+            ) : (
+              <React.Fragment>
+                {haulingRequests.map((request, index) => (
+                  <View key={`hauling-${index}`} style={styles.completedCard}>
+                    <View style={styles.completedCardContent}>
+                      <Text style={styles.completedFormTitle}>
+                        HAULING DUMPSTERS
+                      </Text>
+                      <Text style={styles.submittedDate}>
+                        Submitted on: {formatSubmittedDate(request.submitted_time)}
+                      </Text>
+                    </View>
+                    <View style={styles.statusIndicator}>
+                      <Text 
+                        style={[
+                          styles.statusText,
+                          { color: getStatusColor(request.status) }
+                        ]}
+                      >
+                        {getStatusLabel(request.status)}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </React.Fragment>
+            )}
           </View>
         )}
       </ScrollView>
@@ -891,6 +989,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: colors.primary,
+    letterSpacing: 0.5,
+  },
+  statusIndicator: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    backgroundColor: colors.card,
+    marginLeft: 12,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '700',
     letterSpacing: 0.5,
   },
   modalOverlay: {
