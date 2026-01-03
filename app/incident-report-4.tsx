@@ -1,7 +1,10 @@
 
 import { colors } from '@/styles/commonStyles';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import React, { useState } from 'react';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
+import SearchableDropdown from '@/components/SearchableDropdown';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,12 +12,14 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { IconSymbol } from '@/components/IconSymbol';
 
-const PLACEHOLDER_EQUIPMENT = ['Excavator', 'Skid Steer', 'Truck', 'Generator'];
-const PLACEHOLDER_MATERIALS = ['Concrete', 'Rebar', 'Wood', 'Asphalt'];
+interface EquipmentItem {
+  id: string;
+  name: string;
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -135,46 +140,6 @@ const styles = StyleSheet.create({
     minHeight: 120,
     textAlignVertical: 'top',
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    backgroundColor: colors.background,
-    borderRadius: 16,
-    padding: 20,
-    width: '85%',
-    maxHeight: '70%',
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 16,
-  },
-  modalOption: {
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  modalOptionText: {
-    fontSize: 16,
-    color: colors.text,
-  },
-  modalCloseButton: {
-    marginTop: 16,
-    padding: 16,
-    backgroundColor: colors.card,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  modalCloseButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-  },
   nextButton: {
     position: 'absolute',
     bottom: 0,
@@ -189,46 +154,138 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
   },
+  loadingContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
 });
 
 export default function IncidentReportPage4() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { currentEmployee } = useAuth();
 
+  // Equipment state
   const [equipmentInvolved, setEquipmentInvolved] = useState<'yes' | 'no' | null>(
     params.equipmentInvolved ? (params.equipmentInvolved as 'yes' | 'no') : null
   );
+  const [equipment, setEquipment] = useState<EquipmentItem[]>([]);
+  const [loadingEquipment, setLoadingEquipment] = useState(false);
   const [selectedEquipment, setSelectedEquipment] = useState<string[]>(
     params.selectedEquipment ? JSON.parse(params.selectedEquipment as string) : []
   );
   const [showEquipmentModal, setShowEquipmentModal] = useState(false);
 
+  // Materials state
   const [materialsInvolved, setMaterialsInvolved] = useState<'yes' | 'no' | null>(
     params.materialsInvolved ? (params.materialsInvolved as 'yes' | 'no') : null
   );
+  const [materials, setMaterials] = useState<EquipmentItem[]>([]);
+  const [loadingMaterials, setLoadingMaterials] = useState(false);
   const [selectedMaterials, setSelectedMaterials] = useState<string[]>(
     params.selectedMaterials ? JSON.parse(params.selectedMaterials as string) : []
   );
   const [showMaterialsModal, setShowMaterialsModal] = useState(false);
 
+  // Body part description
   const [bodyPartDescription, setBodyPartDescription] = useState(
     params.bodyPartDescription as string || ''
   );
 
-  const toggleEquipment = (equipment: string) => {
-    if (selectedEquipment.includes(equipment)) {
-      setSelectedEquipment(selectedEquipment.filter((e) => e !== equipment));
+  // Fetch equipment when user selects "Yes" for equipment involved
+  useEffect(() => {
+    const fetchEquipment = async () => {
+      if (equipmentInvolved !== 'yes' || !currentEmployee?.org_id) {
+        return;
+      }
+
+      setLoadingEquipment(true);
+      try {
+        const { data, error } = await supabase
+          .from('equipment')
+          .select('id, name')
+          .eq('org_id', currentEmployee.org_id)
+          .eq('kind', 'equipment')
+          .order('name', { ascending: true });
+
+        if (error) {
+          console.error('Error fetching equipment:', error);
+        } else {
+          const formattedEquipment = (data || []).map((item) => ({
+            id: item.id,
+            name: item.name,
+          }));
+          setEquipment(formattedEquipment);
+        }
+      } catch (error) {
+        console.error('Exception fetching equipment:', error);
+      } finally {
+        setLoadingEquipment(false);
+      }
+    };
+
+    fetchEquipment();
+  }, [equipmentInvolved, currentEmployee?.org_id]);
+
+  // Fetch materials when user selects "Yes" for materials involved
+  useEffect(() => {
+    const fetchMaterials = async () => {
+      if (materialsInvolved !== 'yes' || !currentEmployee?.org_id) {
+        return;
+      }
+
+      setLoadingMaterials(true);
+      try {
+        const { data, error } = await supabase
+          .from('equipment')
+          .select('id, name')
+          .eq('org_id', currentEmployee.org_id)
+          .eq('kind', 'material')
+          .order('name', { ascending: true });
+
+        if (error) {
+          console.error('Error fetching materials:', error);
+        } else {
+          const formattedMaterials = (data || []).map((item) => ({
+            id: item.id,
+            name: item.name,
+          }));
+          setMaterials(formattedMaterials);
+        }
+      } catch (error) {
+        console.error('Exception fetching materials:', error);
+      } finally {
+        setLoadingMaterials(false);
+      }
+    };
+
+    fetchMaterials();
+  }, [materialsInvolved, currentEmployee?.org_id]);
+
+  const toggleEquipment = (equipmentId: string) => {
+    if (selectedEquipment.includes(equipmentId)) {
+      setSelectedEquipment(selectedEquipment.filter((e) => e !== equipmentId));
     } else {
-      setSelectedEquipment([...selectedEquipment, equipment]);
+      setSelectedEquipment([...selectedEquipment, equipmentId]);
     }
   };
 
-  const toggleMaterial = (material: string) => {
-    if (selectedMaterials.includes(material)) {
-      setSelectedMaterials(selectedMaterials.filter((m) => m !== material));
+  const toggleMaterial = (materialId: string) => {
+    if (selectedMaterials.includes(materialId)) {
+      setSelectedMaterials(selectedMaterials.filter((m) => m !== materialId));
     } else {
-      setSelectedMaterials([...selectedMaterials, material]);
+      setSelectedMaterials([...selectedMaterials, materialId]);
     }
+  };
+
+  const getEquipmentName = (equipmentId: string) => {
+    const item = equipment.find((e) => e.id === equipmentId);
+    return item?.name || equipmentId;
+  };
+
+  const getMaterialName = (materialId: string) => {
+    const item = materials.find((m) => m.id === materialId);
+    return item?.name || materialId;
   };
 
   const handleNext = () => {
@@ -270,11 +327,11 @@ export default function IncidentReportPage4() {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-          <IconSymbol 
-            ios_icon_name="chevron.left" 
-            android_material_icon_name="arrow-back" 
-            size={24} 
-            color={colors.primary} 
+          <IconSymbol
+            ios_icon_name="chevron.left"
+            android_material_icon_name="arrow-back"
+            size={24}
+            color={colors.primary}
           />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Equipment, Materials & Injury Area</Text>
@@ -325,39 +382,50 @@ export default function IncidentReportPage4() {
 
           {equipmentInvolved === 'yes' && (
             <>
-              <TouchableOpacity
-                style={styles.dropdownButton}
-                onPress={() => setShowEquipmentModal(true)}
-              >
-                <Text style={styles.dropdownButtonText}>
-                  {selectedEquipment.length > 0
-                    ? `${selectedEquipment.length} selected`
-                    : 'Select equipment'}
-                </Text>
-                <IconSymbol 
-                  ios_icon_name="chevron.down" 
-                  android_material_icon_name="arrow-drop-down" 
-                  size={20} 
-                  color={colors.text} 
-                />
-              </TouchableOpacity>
-
-              {selectedEquipment.length > 0 && (
-                <View style={styles.selectedItems}>
-                  {selectedEquipment.map((equip) => (
-                    <View key={equip} style={styles.chip}>
-                      <Text style={styles.chipText}>{equip}</Text>
-                      <TouchableOpacity onPress={() => toggleEquipment(equip)}>
-                        <IconSymbol 
-                          ios_icon_name="xmark" 
-                          android_material_icon_name="close" 
-                          size={14} 
-                          color="#FFFFFF" 
-                        />
-                      </TouchableOpacity>
-                    </View>
-                  ))}
+              {loadingEquipment ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={{ color: colors.text, marginTop: 8 }}>
+                    Loading equipment...
+                  </Text>
                 </View>
+              ) : (
+                <>
+                  <TouchableOpacity
+                    style={styles.dropdownButton}
+                    onPress={() => setShowEquipmentModal(true)}
+                  >
+                    <Text style={styles.dropdownButtonText}>
+                      {selectedEquipment.length > 0
+                        ? `${selectedEquipment.length} selected`
+                        : 'Select equipment'}
+                    </Text>
+                    <IconSymbol
+                      ios_icon_name="chevron.down"
+                      android_material_icon_name="arrow-drop-down"
+                      size={20}
+                      color={colors.text}
+                    />
+                  </TouchableOpacity>
+
+                  {selectedEquipment.length > 0 && (
+                    <View style={styles.selectedItems}>
+                      {selectedEquipment.map((equipId) => (
+                        <View key={equipId} style={styles.chip}>
+                          <Text style={styles.chipText}>{getEquipmentName(equipId)}</Text>
+                          <TouchableOpacity onPress={() => toggleEquipment(equipId)}>
+                            <IconSymbol
+                              ios_icon_name="xmark"
+                              android_material_icon_name="close"
+                              size={14}
+                              color="#FFFFFF"
+                            />
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </>
               )}
             </>
           )}
@@ -407,39 +475,50 @@ export default function IncidentReportPage4() {
 
           {materialsInvolved === 'yes' && (
             <>
-              <TouchableOpacity
-                style={styles.dropdownButton}
-                onPress={() => setShowMaterialsModal(true)}
-              >
-                <Text style={styles.dropdownButtonText}>
-                  {selectedMaterials.length > 0
-                    ? `${selectedMaterials.length} selected`
-                    : 'Select materials'}
-                </Text>
-                <IconSymbol 
-                  ios_icon_name="chevron.down" 
-                  android_material_icon_name="arrow-drop-down" 
-                  size={20} 
-                  color={colors.text} 
-                />
-              </TouchableOpacity>
-
-              {selectedMaterials.length > 0 && (
-                <View style={styles.selectedItems}>
-                  {selectedMaterials.map((mat) => (
-                    <View key={mat} style={styles.chip}>
-                      <Text style={styles.chipText}>{mat}</Text>
-                      <TouchableOpacity onPress={() => toggleMaterial(mat)}>
-                        <IconSymbol 
-                          ios_icon_name="xmark" 
-                          android_material_icon_name="close" 
-                          size={14} 
-                          color="#FFFFFF" 
-                        />
-                      </TouchableOpacity>
-                    </View>
-                  ))}
+              {loadingMaterials ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={{ color: colors.text, marginTop: 8 }}>
+                    Loading materials...
+                  </Text>
                 </View>
+              ) : (
+                <>
+                  <TouchableOpacity
+                    style={styles.dropdownButton}
+                    onPress={() => setShowMaterialsModal(true)}
+                  >
+                    <Text style={styles.dropdownButtonText}>
+                      {selectedMaterials.length > 0
+                        ? `${selectedMaterials.length} selected`
+                        : 'Select materials'}
+                    </Text>
+                    <IconSymbol
+                      ios_icon_name="chevron.down"
+                      android_material_icon_name="arrow-drop-down"
+                      size={20}
+                      color={colors.text}
+                    />
+                  </TouchableOpacity>
+
+                  {selectedMaterials.length > 0 && (
+                    <View style={styles.selectedItems}>
+                      {selectedMaterials.map((matId) => (
+                        <View key={matId} style={styles.chip}>
+                          <Text style={styles.chipText}>{getMaterialName(matId)}</Text>
+                          <TouchableOpacity onPress={() => toggleMaterial(matId)}>
+                            <IconSymbol
+                              ios_icon_name="xmark"
+                              android_material_icon_name="close"
+                              size={14}
+                              color="#FFFFFF"
+                            />
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </>
               )}
             </>
           )}
@@ -453,6 +532,7 @@ export default function IncidentReportPage4() {
           <TextInput
             style={styles.textArea}
             placeholder="Enter description..."
+            placeholderTextColor={colors.text + '80'}
             value={bodyPartDescription}
             onChangeText={setBodyPartDescription}
             multiline
@@ -464,61 +544,29 @@ export default function IncidentReportPage4() {
         <Text style={styles.nextButtonText}>Next</Text>
       </TouchableOpacity>
 
-      <Modal visible={showEquipmentModal} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Select Equipment</Text>
-            <ScrollView>
-              {PLACEHOLDER_EQUIPMENT.map((equip) => (
-                <TouchableOpacity
-                  key={equip}
-                  style={styles.modalOption}
-                  onPress={() => toggleEquipment(equip)}
-                >
-                  <Text style={styles.modalOptionText}>
-                    {selectedEquipment.includes(equip) ? '✓ ' : ''}
-                    {equip}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-            <TouchableOpacity
-              style={styles.modalCloseButton}
-              onPress={() => setShowEquipmentModal(false)}
-            >
-              <Text style={styles.modalCloseButtonText}>Done</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      <SearchableDropdown
+        visible={showEquipmentModal}
+        onClose={() => setShowEquipmentModal(false)}
+        title="Select Equipment"
+        items={equipment}
+        selectedIds={selectedEquipment}
+        onToggleItem={toggleEquipment}
+        multiSelect={true}
+        loading={loadingEquipment}
+        initialLimit={20}
+      />
 
-      <Modal visible={showMaterialsModal} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Select Materials</Text>
-            <ScrollView>
-              {PLACEHOLDER_MATERIALS.map((mat) => (
-                <TouchableOpacity
-                  key={mat}
-                  style={styles.modalOption}
-                  onPress={() => toggleMaterial(mat)}
-                >
-                  <Text style={styles.modalOptionText}>
-                    {selectedMaterials.includes(mat) ? '✓ ' : ''}
-                    {mat}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-            <TouchableOpacity
-              style={styles.modalCloseButton}
-              onPress={() => setShowMaterialsModal(false)}
-            >
-              <Text style={styles.modalCloseButtonText}>Done</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      <SearchableDropdown
+        visible={showMaterialsModal}
+        onClose={() => setShowMaterialsModal(false)}
+        title="Select Materials"
+        items={materials}
+        selectedIds={selectedMaterials}
+        onToggleItem={toggleMaterial}
+        multiSelect={true}
+        loading={loadingMaterials}
+        initialLimit={20}
+      />
     </View>
   );
 }
