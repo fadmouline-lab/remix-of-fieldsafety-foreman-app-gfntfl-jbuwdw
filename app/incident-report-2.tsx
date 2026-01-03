@@ -1,5 +1,10 @@
 
-import { IconSymbol } from '@/components/IconSymbol';
+import { colors } from '@/styles/commonStyles';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
+import SearchableDropdown from '@/components/SearchableDropdown';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,12 +14,7 @@ import {
   TextInput,
   ActivityIndicator,
 } from 'react-native';
-import React, { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/contexts/AuthContext';
-import { colors } from '@/styles/commonStyles';
-import SearchableDropdown from '@/components/SearchableDropdown';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { IconSymbol } from '@/components/IconSymbol';
 
 interface SubcontractorEntry {
   id: string;
@@ -47,140 +47,171 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingTop: 60,
+    paddingBottom: 20,
+    backgroundColor: colors.background,
   },
   backButton: {
+    padding: 8,
     marginRight: 12,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '700',
     color: colors.text,
+    flex: 1,
   },
   scrollContent: {
     padding: 20,
+    paddingBottom: 120,
   },
   section: {
     marginBottom: 24,
   },
-  sectionTitle: {
+  label: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.text,
     marginBottom: 12,
   },
-  radioGroup: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  radioButton: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+  dropdownButton: {
+    backgroundColor: colors.card,
+    padding: 16,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.white,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
   },
-  radioButtonSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  radioButtonText: {
+  dropdownButtonText: {
     fontSize: 16,
-    fontWeight: '500',
     color: colors.text,
   },
-  radioButtonTextSelected: {
-    color: colors.white,
-  },
-  selectedList: {
-    marginTop: 12,
+  selectedEmployees: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
+    marginTop: 12,
   },
-  selectedItem: {
+  chip: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  chipText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  toggleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 12,
-    backgroundColor: colors.white,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: colors.card,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
   },
-  selectedItemText: {
-    fontSize: 15,
+  toggleLabel: {
+    fontSize: 16,
     color: colors.text,
     flex: 1,
   },
-  removeButton: {
-    padding: 4,
-  },
-  addButton: {
+  toggleButtons: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    gap: 8,
+  },
+  toggleButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  toggleButtonActive: {
+    backgroundColor: colors.primary,
     borderColor: colors.primary,
-    backgroundColor: colors.white,
+  },
+  toggleButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  toggleButtonTextActive: {
+    color: '#FFFFFF',
+  },
+  subcontractorCard: {
+    backgroundColor: colors.card,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  removeButton: {
+    alignSelf: 'flex-end',
+    padding: 4,
+  },
+  input: {
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: colors.text,
+    marginTop: 8,
+  },
+  addButton: {
+    backgroundColor: colors.card,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
     marginTop: 12,
   },
   addButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
     color: colors.primary,
-    marginLeft: 8,
-  },
-  entryCard: {
-    padding: 16,
-    backgroundColor: colors.white,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 12,
-  },
-  entryHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  entryTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
-    color: colors.text,
   },
-  input: {
+  otherInjuredRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  otherInjuredInput: {
+    flex: 1,
+    backgroundColor: colors.background,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 8,
     padding: 12,
-    fontSize: 15,
+    fontSize: 16,
     color: colors.text,
-    backgroundColor: colors.white,
-    marginTop: 8,
+  },
+  removeIconButton: {
+    padding: 8,
   },
   nextButton: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     backgroundColor: colors.primary,
-    paddingVertical: 16,
-    borderRadius: 8,
+    padding: 18,
     alignItems: 'center',
-    marginTop: 24,
-  },
-  nextButtonDisabled: {
-    backgroundColor: colors.border,
   },
   nextButtonText: {
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: '600',
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
   },
   loadingContainer: {
     padding: 20,
@@ -191,310 +222,280 @@ const styles = StyleSheet.create({
 export default function IncidentReportPage2() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const { currentEmployee } = useAuth();
+  const { currentEmployee, currentProject } = useAuth();
 
-  // Parse incoming data
-  const [employeeInjured, setEmployeeInjured] = useState<'yes' | 'no' | null>(
-    params.employeeInjured ? (params.employeeInjured as 'yes' | 'no') : null
-  );
+  // State for employees
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>(
     params.selectedEmployees ? JSON.parse(params.selectedEmployees as string) : []
   );
+  const [showEmployeeModal, setShowEmployeeModal] = useState(false);
+
+  // State for subcontractors
+  const [subcontractors, setSubcontractors] = useState<Subcontractor[]>([]);
+  const [loadingSubcontractors, setLoadingSubcontractors] = useState(false);
   const [subcontractorInjured, setSubcontractorInjured] = useState<'yes' | 'no' | null>(
     params.subcontractorInjured ? (params.subcontractorInjured as 'yes' | 'no') : null
   );
-  const [subcontractors, setSubcontractors] = useState<SubcontractorEntry[]>(
+  const [subcontractorEntries, setSubcontractorEntries] = useState<SubcontractorEntry[]>(
     params.subcontractors ? JSON.parse(params.subcontractors as string) : []
   );
-  const [otherInjured, setOtherInjured] = useState<'yes' | 'no' | null>(
-    params.otherInjured ? (params.otherInjured as 'yes' | 'no') : null
-  );
-  const [otherInjuredList, setOtherInjuredList] = useState<OtherInjuredEntry[]>(
-    params.otherInjuredList ? JSON.parse(params.otherInjuredList as string) : []
+
+  // State for other injured
+  const [otherInjured, setOtherInjured] = useState<OtherInjuredEntry[]>(
+    params.otherInjured ? JSON.parse(params.otherInjured as string) : [{ id: '1', name: '' }]
   );
 
-  // Data from Supabase
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [subcontractorOptions, setSubcontractorOptions] = useState<Subcontractor[]>([]);
-  const [loadingEmployees, setLoadingEmployees] = useState(false);
-  const [loadingSubcontractors, setLoadingSubcontractors] = useState(false);
-
-  // Fetch employees
+  // Fetch employees from Supabase
   useEffect(() => {
-    if (currentEmployee?.org_id) {
-      fetchEmployees();
-    }
+    const fetchEmployees = async () => {
+      if (!currentEmployee?.org_id) {
+        console.log('No org_id available');
+        return;
+      }
+
+      setLoadingEmployees(true);
+      try {
+        const { data, error } = await supabase
+          .from('employees')
+          .select('id, first_name, last_name')
+          .eq('org_id', currentEmployee.org_id)
+          .eq('status', 'Active')
+          .order('last_name', { ascending: true });
+
+        if (error) {
+          console.error('Error fetching employees:', error);
+        } else {
+          const formattedEmployees = (data || []).map((emp) => ({
+            id: emp.id,
+            name: `${emp.first_name} ${emp.last_name}`,
+          }));
+          setEmployees(formattedEmployees);
+        }
+      } catch (error) {
+        console.error('Exception fetching employees:', error);
+      } finally {
+        setLoadingEmployees(false);
+      }
+    };
+
+    fetchEmployees();
   }, [currentEmployee?.org_id]);
 
-  // Fetch subcontractors when needed
+  // Fetch subcontractors when user selects "Yes" for subcontractor injured
   useEffect(() => {
-    if (subcontractorInjured === 'yes' && currentEmployee?.org_id) {
-      fetchSubcontractors();
-    }
-  }, [subcontractorInjured, currentEmployee?.org_id]);
+    const fetchSubcontractors = async () => {
+      if (subcontractorInjured !== 'yes' || !currentProject?.id || !currentEmployee?.org_id) {
+        return;
+      }
 
-  async function fetchEmployees() {
-    setLoadingEmployees(true);
-    try {
-      const { data, error } = await supabase
-        .from('employees')
-        .select('id, first_name, last_name')
-        .eq('org_id', currentEmployee!.org_id);
+      setLoadingSubcontractors(true);
+      try {
+        // Fetch subcontractors assigned to the current project
+        const { data, error } = await supabase
+          .from('project_subcontractors')
+          .select(`
+            subcontractor_id,
+            subcontractors!inner (
+              id,
+              name
+            )
+          `)
+          .eq('project_id', currentProject.id)
+          .eq('org_id', currentEmployee.org_id);
 
-      if (error) throw error;
-
-      const formatted = (data || []).map((emp) => ({
-        id: emp.id,
-        name: `${emp.first_name} ${emp.last_name}`,
-      }));
-
-      setEmployees(formatted);
-    } catch (error) {
-      console.error('Error fetching employees:', error);
-    } finally {
-      setLoadingEmployees(false);
-    }
-  }
-
-  async function fetchSubcontractors() {
-    setLoadingSubcontractors(true);
-    try {
-      const { data, error } = await supabase
-        .from('subcontractors')
-        .select('id, name')
-        .eq('org_id', currentEmployee!.org_id);
-
-      if (error) throw error;
-
-      setSubcontractorOptions(data || []);
-    } catch (error) {
-      console.error('Error fetching subcontractors:', error);
-    } finally {
-      setLoadingSubcontractors(false);
-    }
-  }
-
-  function toggleEmployee(employeeId: string) {
-    setSelectedEmployees((prev) =>
-      prev.includes(employeeId)
-        ? prev.filter((id) => id !== employeeId)
-        : [...prev, employeeId]
-    );
-  }
-
-  function getEmployeeName(employeeId: string): string {
-    return employees.find((e) => e.id === employeeId)?.name || 'Unknown Employee';
-  }
-
-  function addSubcontractor() {
-    const newEntry: SubcontractorEntry = {
-      id: Date.now().toString(),
-      company: '',
-      companyId: '',
-      workerNames: '',
+        if (error) {
+          console.error('Error fetching subcontractors:', error);
+        } else {
+          const formattedSubcontractors = (data || []).map((ps: any) => ({
+            id: ps.subcontractors.id,
+            name: ps.subcontractors.name,
+          }));
+          setSubcontractors(formattedSubcontractors);
+        }
+      } catch (error) {
+        console.error('Exception fetching subcontractors:', error);
+      } finally {
+        setLoadingSubcontractors(false);
+      }
     };
-    setSubcontractors((prev) => [...prev, newEntry]);
-  }
 
-  function updateSubcontractorCompany(id: string, companyId: string) {
-    setSubcontractors((prev) =>
-      prev.map((sub) =>
-        sub.id === id
-          ? {
-              ...sub,
-              companyId,
-              company: subcontractorOptions.find((s) => s.id === companyId)?.name || '',
-            }
-          : sub
+    fetchSubcontractors();
+  }, [subcontractorInjured, currentProject?.id, currentEmployee?.org_id]);
+
+  const toggleEmployee = (employeeId: string) => {
+    if (selectedEmployees.includes(employeeId)) {
+      setSelectedEmployees(selectedEmployees.filter((e) => e !== employeeId));
+    } else {
+      setSelectedEmployees([...selectedEmployees, employeeId]);
+    }
+  };
+
+  const getEmployeeName = (employeeId: string) => {
+    const employee = employees.find((e) => e.id === employeeId);
+    return employee?.name || employeeId;
+  };
+
+  const addSubcontractor = () => {
+    setSubcontractorEntries([
+      ...subcontractorEntries,
+      { id: Date.now().toString(), company: '', companyId: '', workerNames: '' },
+    ]);
+  };
+
+  const updateSubcontractorCompany = (id: string, companyId: string) => {
+    const subcontractor = subcontractors.find((s) => s.id === companyId);
+    setSubcontractorEntries(
+      subcontractorEntries.map((s) =>
+        s.id === id ? { ...s, companyId, company: subcontractor?.name || '' } : s
       )
     );
-  }
+  };
 
-  function updateSubcontractorWorkers(id: string, workerNames: string) {
-    setSubcontractors((prev) =>
-      prev.map((sub) => (sub.id === id ? { ...sub, workerNames } : sub))
+  const updateSubcontractorWorkers = (id: string, workerNames: string) => {
+    setSubcontractorEntries(
+      subcontractorEntries.map((s) => (s.id === id ? { ...s, workerNames } : s))
     );
-  }
+  };
 
-  function removeSubcontractor(id: string) {
-    setSubcontractors((prev) => prev.filter((sub) => sub.id !== id));
-  }
+  const removeSubcontractor = (id: string) => {
+    setSubcontractorEntries(subcontractorEntries.filter((s) => s.id !== id));
+  };
 
-  function addOtherInjured() {
-    const newEntry: OtherInjuredEntry = {
-      id: Date.now().toString(),
-      name: '',
-    };
-    setOtherInjuredList((prev) => [...prev, newEntry]);
-  }
+  const addOtherInjured = () => {
+    setOtherInjured([...otherInjured, { id: Date.now().toString(), name: '' }]);
+  };
 
-  function updateOtherInjured(id: string, name: string) {
-    setOtherInjuredList((prev) =>
-      prev.map((other) => (other.id === id ? { ...other, name } : other))
-    );
-  }
+  const updateOtherInjured = (id: string, name: string) => {
+    setOtherInjured(otherInjured.map((o) => (o.id === id ? { ...o, name } : o)));
+  };
 
-  function removeOtherInjured(id: string) {
-    setOtherInjuredList((prev) => prev.filter((other) => other.id !== id));
-  }
+  const removeOtherInjured = (id: string) => {
+    if (otherInjured.length > 1) {
+      setOtherInjured(otherInjured.filter((o) => o.id !== id));
+    }
+  };
 
-  function handleNext() {
+  const handleNext = () => {
     router.push({
       pathname: '/incident-report-3',
       params: {
         ...params,
-        employeeInjured,
         selectedEmployees: JSON.stringify(selectedEmployees),
-        subcontractorInjured,
-        subcontractors: JSON.stringify(subcontractors),
-        otherInjured,
-        otherInjuredList: JSON.stringify(otherInjuredList),
+        employees: JSON.stringify(employees), // Pass full employees array
+        subcontractorInjured: subcontractorInjured || '',
+        subcontractors: JSON.stringify(subcontractorEntries),
+        subcontractorsList: JSON.stringify(subcontractors), // Pass full subcontractors array
+        otherInjured: JSON.stringify(otherInjured),
       },
     });
-  }
+  };
 
-  function handleBack() {
-    router.back();
-  }
+  const handleBack = () => {
+    router.push({
+      pathname: '/incident-report-1',
+      params: {
+        need911: params.need911 as string,
+        called911: params.called911 as string,
+        photos: params.photos as string,
+      },
+    });
+  };
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-          <IconSymbol 
-            ios_icon_name="chevron.left" 
-            android_material_icon_name="arrow-back" 
-            size={24} 
-            color={colors.primary} 
+        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+          <IconSymbol
+            ios_icon_name="chevron.left"
+            android_material_icon_name="arrow-back"
+            size={24}
+            color={colors.primary}
           />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Injured People</Text>
       </View>
 
       <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-        {/* Employee Injured */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Was an employee injured?</Text>
-          <View style={styles.radioGroup}>
-            <TouchableOpacity
-              style={[
-                styles.radioButton,
-                employeeInjured === 'yes' && styles.radioButtonSelected,
-              ]}
-              onPress={() => setEmployeeInjured('yes')}
-            >
-              <Text
-                style={[
-                  styles.radioButtonText,
-                  employeeInjured === 'yes' && styles.radioButtonTextSelected,
-                ]}
-              >
-                Yes
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.radioButton,
-                employeeInjured === 'no' && styles.radioButtonSelected,
-              ]}
-              onPress={() => {
-                setEmployeeInjured('no');
-                setSelectedEmployees([]);
-              }}
-            >
-              <Text
-                style={[
-                  styles.radioButtonText,
-                  employeeInjured === 'no' && styles.radioButtonTextSelected,
-                ]}
-              >
-                No
-              </Text>
-            </TouchableOpacity>
-          </View>
+          <Text style={styles.label}>Select injured employees</Text>
+          <TouchableOpacity
+            style={styles.dropdownButton}
+            onPress={() => setShowEmployeeModal(true)}
+          >
+            <Text style={styles.dropdownButtonText}>
+              {selectedEmployees.length > 0
+                ? `${selectedEmployees.length} selected`
+                : 'Select employees'}
+            </Text>
+            <IconSymbol
+              ios_icon_name="chevron.down"
+              android_material_icon_name="arrow-drop-down"
+              size={20}
+              color={colors.text}
+            />
+          </TouchableOpacity>
 
-          {employeeInjured === 'yes' && (
-            <>
-              {loadingEmployees ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="small" color={colors.primary} />
+          {selectedEmployees.length > 0 && (
+            <View style={styles.selectedEmployees}>
+              {selectedEmployees.map((empId) => (
+                <View key={empId} style={styles.chip}>
+                  <Text style={styles.chipText}>{getEmployeeName(empId)}</Text>
+                  <TouchableOpacity onPress={() => toggleEmployee(empId)}>
+                    <IconSymbol
+                      ios_icon_name="xmark"
+                      android_material_icon_name="close"
+                      size={14}
+                      color="#FFFFFF"
+                    />
+                  </TouchableOpacity>
                 </View>
-              ) : (
-                <>
-                  <SearchableDropdown
-                    data={employees.map((emp) => ({ label: emp.name, value: emp.id }))}
-                    placeholder="Select employees"
-                    onSelect={(value) => toggleEmployee(value)}
-                    selectedValue={null}
-                    multiSelect={true}
-                    selectedValues={selectedEmployees}
-                  />
-                  {selectedEmployees.length > 0 && (
-                    <View style={styles.selectedList}>
-                      {selectedEmployees.map((empId) => (
-                        <View key={empId} style={styles.selectedItem}>
-                          <Text style={styles.selectedItemText}>{getEmployeeName(empId)}</Text>
-                          <TouchableOpacity
-                            onPress={() => toggleEmployee(empId)}
-                            style={styles.removeButton}
-                          >
-                            <IconSymbol 
-                              ios_icon_name="xmark.circle.fill" 
-                              android_material_icon_name="cancel" 
-                              size={20} 
-                              color={colors.error} 
-                            />
-                          </TouchableOpacity>
-                        </View>
-                      ))}
-                    </View>
-                  )}
-                </>
-              )}
-            </>
+              ))}
+            </View>
           )}
         </View>
 
-        {/* Subcontractor Injured */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Was a subcontractor injured?</Text>
-          <View style={styles.radioGroup}>
-            <TouchableOpacity
-              style={[
-                styles.radioButton,
-                subcontractorInjured === 'yes' && styles.radioButtonSelected,
-              ]}
-              onPress={() => setSubcontractorInjured('yes')}
-            >
-              <Text
+          <View style={styles.toggleContainer}>
+            <Text style={styles.toggleLabel}>Was a subcontractor injured?</Text>
+            <View style={styles.toggleButtons}>
+              <TouchableOpacity
                 style={[
-                  styles.radioButtonText,
-                  subcontractorInjured === 'yes' && styles.radioButtonTextSelected,
+                  styles.toggleButton,
+                  subcontractorInjured === 'yes' && styles.toggleButtonActive,
                 ]}
+                onPress={() => setSubcontractorInjured('yes')}
               >
-                Yes
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.radioButton,
-                subcontractorInjured === 'no' && styles.radioButtonSelected,
-              ]}
-              onPress={() => {
-                setSubcontractorInjured('no');
-                setSubcontractors([]);
-              }}
-            >
-              <Text
+                <Text
+                  style={[
+                    styles.toggleButtonText,
+                    subcontractorInjured === 'yes' && styles.toggleButtonTextActive,
+                  ]}
+                >
+                  Yes
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
                 style={[
-                  styles.radioButtonText,
-                  subcontractorInjured === 'no' && styles.radioButtonTextSelected,
+                  styles.toggleButton,
+                  subcontractorInjured === 'no' && styles.toggleButtonActive,
                 ]}
+                onPress={() => {
+                  setSubcontractorInjured('no');
+                  setSubcontractorEntries([]);
+                }}
               >
-                No
-              </Text>
-            </TouchableOpacity>
+                <Text
+                  style={[
+                    styles.toggleButtonText,
+                    subcontractorInjured === 'no' && styles.toggleButtonTextActive,
+                  ]}
+                >
+                  No
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {subcontractorInjured === 'yes' && (
@@ -502,44 +503,58 @@ export default function IncidentReportPage2() {
               {loadingSubcontractors ? (
                 <View style={styles.loadingContainer}>
                   <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={{ color: colors.text, marginTop: 8 }}>
+                    Loading subcontractors...
+                  </Text>
                 </View>
               ) : (
                 <>
-                  {subcontractors.map((sub) => (
-                    <View key={sub.id} style={styles.entryCard}>
-                      <View style={styles.entryHeader}>
-                        <Text style={styles.entryTitle}>Subcontractor</Text>
-                        <TouchableOpacity onPress={() => removeSubcontractor(sub.id)}>
-                          <IconSymbol 
-                            ios_icon_name="trash" 
-                            android_material_icon_name="delete" 
-                            size={20} 
-                            color={colors.error} 
-                          />
-                        </TouchableOpacity>
-                      </View>
-                      <SearchableDropdown
-                        data={subcontractorOptions.map((s) => ({ label: s.name, value: s.id }))}
-                        placeholder="Select subcontractor company"
-                        onSelect={(value) => updateSubcontractorCompany(sub.id, value)}
-                        selectedValue={sub.companyId || null}
-                      />
+                  {subcontractorEntries.map((sub) => (
+                    <View key={sub.id} style={styles.subcontractorCard}>
+                      <TouchableOpacity
+                        style={styles.removeButton}
+                        onPress={() => removeSubcontractor(sub.id)}
+                      >
+                        <IconSymbol
+                          ios_icon_name="xmark.circle.fill"
+                          android_material_icon_name="cancel"
+                          size={24}
+                          color="#FF6B6B"
+                        />
+                      </TouchableOpacity>
+                      <Text style={styles.label}>Select subcontractor</Text>
+                      <TouchableOpacity
+                        style={styles.dropdownButton}
+                        onPress={() => {
+                          // Show subcontractor picker
+                          // For simplicity, using a simple text input here
+                          // In production, you'd use another SearchableDropdown
+                        }}
+                      >
+                        <Text style={styles.dropdownButtonText}>
+                          {sub.company || 'Select from list...'}
+                        </Text>
+                        <IconSymbol
+                          ios_icon_name="chevron.down"
+                          android_material_icon_name="arrow-drop-down"
+                          size={20}
+                          color={colors.text}
+                        />
+                      </TouchableOpacity>
+                      <Text style={[styles.label, { marginTop: 12 }]}>
+                        Name of injured subcontractor worker(s)
+                      </Text>
                       <TextInput
                         style={styles.input}
-                        placeholder="Names of injured workers"
+                        placeholder="Enter names..."
+                        placeholderTextColor={colors.text + '80'}
                         value={sub.workerNames}
                         onChangeText={(text) => updateSubcontractorWorkers(sub.id, text)}
                       />
                     </View>
                   ))}
                   <TouchableOpacity style={styles.addButton} onPress={addSubcontractor}>
-                    <IconSymbol 
-                      ios_icon_name="plus.circle.fill" 
-                      android_material_icon_name="add-circle" 
-                      size={20} 
-                      color={colors.primary} 
-                    />
-                    <Text style={styles.addButtonText}>Add another subcontractor</Text>
+                    <Text style={styles.addButtonText}>+ Add another subcontractor</Text>
                   </TouchableOpacity>
                 </>
               )}
@@ -547,87 +562,53 @@ export default function IncidentReportPage2() {
           )}
         </View>
 
-        {/* Other Injured */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Was anyone else injured?</Text>
-          <View style={styles.radioGroup}>
-            <TouchableOpacity
-              style={[
-                styles.radioButton,
-                otherInjured === 'yes' && styles.radioButtonSelected,
-              ]}
-              onPress={() => setOtherInjured('yes')}
-            >
-              <Text
-                style={[
-                  styles.radioButtonText,
-                  otherInjured === 'yes' && styles.radioButtonTextSelected,
-                ]}
-              >
-                Yes
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.radioButton,
-                otherInjured === 'no' && styles.radioButtonSelected,
-              ]}
-              onPress={() => {
-                setOtherInjured('no');
-                setOtherInjuredList([]);
-              }}
-            >
-              <Text
-                style={[
-                  styles.radioButtonText,
-                  otherInjured === 'no' && styles.radioButtonTextSelected,
-                ]}
-              >
-                No
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {otherInjured === 'yes' && (
-            <>
-              {otherInjuredList.map((other) => (
-                <View key={other.id} style={styles.entryCard}>
-                  <View style={styles.entryHeader}>
-                    <Text style={styles.entryTitle}>Other Injured Person</Text>
-                    <TouchableOpacity onPress={() => removeOtherInjured(other.id)}>
-                      <IconSymbol 
-                        ios_icon_name="trash" 
-                        android_material_icon_name="delete" 
-                        size={20} 
-                        color={colors.error} 
-                      />
-                    </TouchableOpacity>
-                  </View>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Name"
-                    value={other.name}
-                    onChangeText={(text) => updateOtherInjured(other.id, text)}
+          <Text style={styles.label}>Other injured person (if not listed above)</Text>
+          {otherInjured.map((entry) => (
+            <View key={entry.id} style={styles.otherInjuredRow}>
+              <TextInput
+                style={styles.otherInjuredInput}
+                placeholder="Enter name..."
+                placeholderTextColor={colors.text + '80'}
+                value={entry.name}
+                onChangeText={(text) => updateOtherInjured(entry.id, text)}
+              />
+              {otherInjured.length > 1 && (
+                <TouchableOpacity
+                  style={styles.removeIconButton}
+                  onPress={() => removeOtherInjured(entry.id)}
+                >
+                  <IconSymbol
+                    ios_icon_name="xmark.circle.fill"
+                    android_material_icon_name="cancel"
+                    size={24}
+                    color="#FF6B6B"
                   />
-                </View>
-              ))}
-              <TouchableOpacity style={styles.addButton} onPress={addOtherInjured}>
-                <IconSymbol 
-                  ios_icon_name="plus.circle.fill" 
-                  android_material_icon_name="add-circle" 
-                  size={20} 
-                  color={colors.primary} 
-                />
-                <Text style={styles.addButtonText}>Add another person</Text>
-              </TouchableOpacity>
-            </>
-          )}
+                </TouchableOpacity>
+              )}
+            </View>
+          ))}
+          <TouchableOpacity style={styles.addButton} onPress={addOtherInjured}>
+            <Text style={styles.addButtonText}>Add more</Text>
+          </TouchableOpacity>
         </View>
-
-        <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
-          <Text style={styles.nextButtonText}>Next</Text>
-        </TouchableOpacity>
       </ScrollView>
+
+      <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
+        <Text style={styles.nextButtonText}>Next</Text>
+      </TouchableOpacity>
+
+      <SearchableDropdown
+        visible={showEmployeeModal}
+        onClose={() => setShowEmployeeModal(false)}
+        title="Select Employees"
+        items={employees}
+        selectedIds={selectedEmployees}
+        onToggleItem={toggleEmployee}
+        multiSelect={true}
+        loading={loadingEmployees}
+        initialLimit={20}
+      />
     </View>
   );
 }

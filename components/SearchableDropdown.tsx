@@ -4,255 +4,214 @@ import {
   View,
   Text,
   StyleSheet,
+  Modal,
+  ScrollView,
   TouchableOpacity,
   TextInput,
-  ScrollView,
-  Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { IconSymbol } from '@/components/IconSymbol';
 import { colors } from '@/styles/commonStyles';
 
-interface DropdownOption {
-  label: string;
-  value: string;
-}
-
 interface SearchableDropdownProps {
-  data: DropdownOption[];
-  placeholder: string;
-  onSelect: (value: string) => void;
-  selectedValue: string | null;
+  visible: boolean;
+  onClose: () => void;
+  title: string;
+  items: Array<{ id: string; name: string }>;
+  selectedIds: string[];
+  onToggleItem: (id: string) => void;
   multiSelect?: boolean;
-  selectedValues?: string[];
+  loading?: boolean;
+  initialLimit?: number;
 }
 
 const styles = StyleSheet.create({
-  container: {
-    marginTop: 12,
-  },
-  dropdownButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    backgroundColor: colors.white,
-  },
-  dropdownButtonText: {
-    fontSize: 15,
-    color: colors.text,
-  },
-  dropdownButtonPlaceholder: {
-    color: colors.textSecondary,
-  },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalContent: {
-    width: '90%',
+    backgroundColor: colors.background,
+    borderRadius: 16,
+    padding: 20,
+    width: '85%',
     maxHeight: '70%',
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: 16,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
     color: colors.text,
+    marginBottom: 16,
   },
   searchInput: {
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 8,
     padding: 12,
-    fontSize: 15,
+    fontSize: 16,
     color: colors.text,
-    backgroundColor: colors.background,
     marginBottom: 12,
   },
-  optionsList: {
-    maxHeight: 300,
+  scrollContent: {
+    flexGrow: 1,
   },
-  optionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 12,
+  modalOption: {
+    padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  optionText: {
-    fontSize: 15,
+  modalOptionText: {
+    fontSize: 16,
     color: colors.text,
     flex: 1,
   },
-  selectedIndicator: {
-    marginLeft: 8,
+  checkmark: {
+    marginRight: 8,
+  },
+  viewMoreButton: {
+    padding: 16,
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  viewMoreText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  modalCloseButton: {
+    marginTop: 16,
+    padding: 16,
+    backgroundColor: colors.card,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  modalCloseButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  loadingContainer: {
+    padding: 32,
+    alignItems: 'center',
   },
   emptyText: {
+    padding: 32,
     textAlign: 'center',
-    color: colors.textSecondary,
-    padding: 20,
-    fontSize: 15,
+    color: colors.text,
+    fontSize: 16,
   },
 });
 
 export default function SearchableDropdown({
-  data,
-  placeholder,
-  onSelect,
-  selectedValue,
-  multiSelect = false,
-  selectedValues = [],
+  visible,
+  onClose,
+  title,
+  items,
+  selectedIds,
+  onToggleItem,
+  multiSelect = true,
+  loading = false,
+  initialLimit = 20,
 }: SearchableDropdownProps) {
-  const [modalVisible, setModalVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showAll, setShowAll] = useState(false);
 
-  const filteredData = useMemo(() => {
-    if (!searchQuery.trim()) return data || [];
+  // Filter items based on search query
+  const filteredItems = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return items;
+    }
     const query = searchQuery.toLowerCase();
-    return (data || []).filter((item) =>
-      item.label.toLowerCase().includes(query)
+    return items.filter((item) =>
+      item.name.toLowerCase().includes(query)
     );
-  }, [data, searchQuery]);
+  }, [items, searchQuery]);
 
-  const displayText = useMemo(() => {
-    if (multiSelect) {
-      if (selectedValues.length === 0) return placeholder;
-      if (selectedValues.length === 1) {
-        const item = data?.find((d) => d.value === selectedValues[0]);
-        return item?.label || placeholder;
-      }
-      return `${selectedValues.length} selected`;
-    } else {
-      if (!selectedValue) return placeholder;
-      const item = data?.find((d) => d.value === selectedValue);
-      return item?.label || placeholder;
+  // Apply truncation if not showing all
+  const displayedItems = useMemo(() => {
+    if (showAll || searchQuery.trim()) {
+      return filteredItems;
     }
-  }, [data, selectedValue, selectedValues, multiSelect, placeholder]);
+    return filteredItems.slice(0, initialLimit);
+  }, [filteredItems, showAll, searchQuery, initialLimit]);
 
-  const handleSelect = (value: string) => {
-    onSelect(value);
+  const hasMore = !showAll && !searchQuery.trim() && filteredItems.length > initialLimit;
+
+  const handleToggle = (id: string) => {
+    onToggleItem(id);
     if (!multiSelect) {
-      setModalVisible(false);
-      setSearchQuery('');
+      onClose();
     }
-  };
-
-  const isSelected = (value: string) => {
-    if (multiSelect) {
-      return selectedValues.includes(value);
-    }
-    return selectedValue === value;
   };
 
   return (
-    <View style={styles.container}>
-      <TouchableOpacity
-        style={styles.dropdownButton}
-        onPress={() => setModalVisible(true)}
-      >
-        <Text
-          style={[
-            styles.dropdownButtonText,
-            (!selectedValue && !multiSelect) || (multiSelect && selectedValues.length === 0)
-              ? styles.dropdownButtonPlaceholder
-              : null,
-          ]}
-        >
-          {displayText}
-        </Text>
-        <IconSymbol 
-          ios_icon_name="chevron.down" 
-          android_material_icon_name="arrow-drop-down" 
-          size={20} 
-          color={colors.textSecondary} 
-        />
-      </TouchableOpacity>
+    <Modal visible={visible} transparent animationType="fade">
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <Text style={styles.modalTitle}>{title}</Text>
 
-      <Modal
-        visible={modalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => {
-          setModalVisible(false);
-          setSearchQuery('');
-        }}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => {
-            setModalVisible(false);
-            setSearchQuery('');
-          }}
-        >
-          <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>{placeholder}</Text>
-                <TouchableOpacity
-                  onPress={() => {
-                    setModalVisible(false);
-                    setSearchQuery('');
-                  }}
-                >
-                  <IconSymbol 
-                    ios_icon_name="xmark.circle.fill" 
-                    android_material_icon_name="cancel" 
-                    size={24} 
-                    color={colors.textSecondary} 
-                  />
-                </TouchableOpacity>
-              </View>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search..."
+            placeholderTextColor={colors.text + '80'}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
 
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search..."
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                autoFocus
-              />
-
-              <ScrollView style={styles.optionsList}>
-                {filteredData.length === 0 ? (
-                  <Text style={styles.emptyText}>No results found</Text>
-                ) : (
-                  filteredData.map((item) => (
-                    <TouchableOpacity
-                      key={item.value}
-                      style={styles.optionItem}
-                      onPress={() => handleSelect(item.value)}
-                    >
-                      <Text style={styles.optionText}>{item.label}</Text>
-                      {isSelected(item.value) && (
-                        <IconSymbol
-                          ios_icon_name="checkmark.circle.fill"
-                          android_material_icon_name="check-circle"
-                          size={20}
-                          color={colors.primary}
-                          style={styles.selectedIndicator}
-                        />
-                      )}
-                    </TouchableOpacity>
-                  ))
-                )}
-              </ScrollView>
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={colors.primary} />
             </View>
+          ) : displayedItems.length === 0 ? (
+            <Text style={styles.emptyText}>
+              {searchQuery.trim() ? 'No results found' : 'No items available'}
+            </Text>
+          ) : (
+            <>
+              <ScrollView contentContainerStyle={styles.scrollContent}>
+                {displayedItems.map((item) => (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={styles.modalOption}
+                    onPress={() => handleToggle(item.id)}
+                  >
+                    {multiSelect && (
+                      <Text style={styles.checkmark}>
+                        {selectedIds.includes(item.id) ? '✓ ' : '  '}
+                      </Text>
+                    )}
+                    <Text style={styles.modalOptionText}>{item.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              {hasMore && (
+                <TouchableOpacity
+                  style={styles.viewMoreButton}
+                  onPress={() => setShowAll(true)}
+                >
+                  <Text style={styles.viewMoreText}>
+                    View {filteredItems.length - initialLimit} more...
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </>
+          )}
+
+          <TouchableOpacity style={styles.modalCloseButton} onPress={onClose}>
+            <Text style={styles.modalCloseButtonText}>Done</Text>
           </TouchableOpacity>
-        </TouchableOpacity>
-      </Modal>
-    </View>
+        </View>
+      </View>
+    </Modal>
   );
 }
