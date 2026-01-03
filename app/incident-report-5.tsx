@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import {
   View,
@@ -8,10 +8,13 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
+import * as FileSystem from 'expo-file-system/legacy';
 
 const styles = StyleSheet.create({
   container: {
@@ -80,7 +83,21 @@ const styles = StyleSheet.create({
     padding: 18,
     alignItems: 'center',
   },
+  submitButtonDisabled: {
+    backgroundColor: colors.border,
+  },
   submitButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  loadingText: {
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '700',
@@ -91,6 +108,7 @@ export default function IncidentReportPage5() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { currentEmployee, currentProject } = useAuth();
+  const [loading, setLoading] = useState(false);
 
   // Parse data from previous pages
   const need911 = params.need911 as string;
@@ -173,17 +191,262 @@ export default function IncidentReportPage5() {
     router.back();
   };
 
+  const uploadPhoto = async (photoUri: string): Promise<{ storage_path: string; mime_type: string } | null> => {
+    try {
+      // Read the file as base64
+      const base64 = await FileSystem.readAsStringAsync(photoUri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      // Generate a unique filename
+      const timestamp = Date.now();
+      const randomString = Math.random().toString(36).substring(7);
+      const fileName = `${timestamp}_${randomString}.jpg`;
+      const filePath = `${fileName}`;
+
+      // Convert base64 to blob
+      const byteCharacters = atob(base64);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: 'image/jpeg' });
+
+      // Upload to Supabase Storage
+      const { data, error } = await supabase.storage
+        .from('injury-report-photos')
+        .upload(filePath, blob, {
+          contentType: 'image/jpeg',
+          upsert: false,
+        });
+
+      if (error) {
+        console.error('Photo upload error:', error);
+        throw error;
+      }
+
+      return {
+        storage_path: data.path,
+        mime_type: 'image/jpeg',
+      };
+    } catch (error) {
+      console.error('Error uploading photo:', error);
+      return null;
+    }
+  };
+
   const handleSubmit = async () => {
-    // TODO: Backend Integration - Submit incident report to the backend API
-    Alert.alert('Success', 'Incident report submitted successfully', [
-      { text: 'OK', onPress: () => router.push('/(tabs)/(home)') }
-    ]);
+    // Validate required fields
+    if (!currentProject?.id) {
+      Alert.alert('Error', 'Project information is missing');
+      return;
+    }
+
+    if (!incidentTime) {
+      Alert.alert('Error', 'Incident time is required');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // Upload photos first
+      const uploadedPhotos: { storage_path: string; mime_type: string }[] = [];
+      for (const photo of photos) {
+        const uploadedPhoto = await uploadPhoto(photo.uri);
+        if (uploadedPhoto) {
+          uploadedPhotos.push(uploadedPhoto);
+        }
+      }
+
+      // Build injured employees payload
+      const injuredEmployees = selectedEmployees.map((empId: string) => {
+        const employee = employees.find((e: any) => e.id === empId);
+        return {
+          employee_id: empId,
+          employee_name: employee ? employee.name : 'Unknown',
+          notes: null,
+        };
+      });
+
+      // Build external workers payload
+      const externalWorkers: any[] = [];
+      
+      // Add subcontractor entries
+      subcontractorEntries.forEach((entry: any) => {
+        if (entry.workerNames) {
+          const subcontractor = subcontractorsList.find((s: any) => s.id === entry.companyId);
+          externalWorkers.push({
+            temp_id: entry.id,
+            subcontractor_id: entry.companyId || null,
+            subcontractor_name: subcontractor ? subcontractor.name : entry.company,
+            person_name: entry.workerNames,
+            person_phone: null,
+            person_company: subcontractor ? subcontractor.name : entry.company,
+            notes: null,
+          });
+        }
+      });
+
+      // Add other injured persons
+      otherInjured.forEach((entry: any) => {
+        if (entry.name) {
+          externalWorkers.push({
+            temp_id: entry.id,
+            subcontractor_id: null,
+            subcontractor_name: null,
+            person_name: entry.name,
+            person_phone: null,
+            person_company: null,
+            notes: null,
+          });
+        }
+      });
+
+      // Build body parts payload (simplified - using description as body_part)
+      const bodyParts: any[] = [];
+      if (bodyPartDescription) {
+        // For each injured person, create a body part entry
+        selectedEmployees.forEach((empId: string) => {
+          bodyParts.push({
+            injured_person_type: 'employee',
+            person_id: empId,
+            body_part: bodyPartDescription,
+            injury_type: null,
+            side: null,
+            notes: null,
+          });
+        });
+
+        externalWorkers.forEach((ext: any) => {
+          bodyParts.push({
+            injured_person_type: 'external',
+            person_id: ext.temp_id,
+            body_part: bodyPartDescription,
+            injury_type: null,
+            side: null,
+            notes: null,
+          });
+        });
+      }
+
+      // Build tasks payload
+      const tasksPayload = selectedTasks.map((taskId: string) => {
+        const task = tasks.find((t: any) => t.id === taskId);
+        return {
+          pre_task_card_id: taskId,
+          task_name: task ? task.name : 'Unknown Task',
+        };
+      });
+
+      // Build witnesses payload
+      const witnessesPayload = witnesses
+        .filter((w: any) => w.isEmployee === 'yes' || w.isEmployee === 'no')
+        .map((witness: any) => {
+          if (witness.isEmployee === 'yes' && witness.employeeId) {
+            const employee = witnessEmployees.find((e: any) => e.id === witness.employeeId);
+            return {
+              witness_type: 'employee',
+              employee_id: witness.employeeId,
+              witness_name: employee ? employee.name : 'Unknown',
+              witness_phone: null,
+              witness_company: null,
+              statement: null,
+            };
+          } else if (witness.isEmployee === 'no' && witness.name) {
+            return {
+              witness_type: 'external',
+              employee_id: null,
+              witness_name: witness.name,
+              witness_phone: witness.phone || null,
+              witness_company: null,
+              statement: null,
+            };
+          }
+          return null;
+        })
+        .filter((w: any) => w !== null);
+
+      // Build equipment payload
+      const equipmentPayload = selectedEquipment.map((eqId: string) => {
+        const equipment = equipmentList.find((e: any) => e.id === eqId);
+        return {
+          equipment_id: eqId,
+          equipment_name: equipment ? equipment.name : 'Unknown',
+          notes: null,
+        };
+      });
+
+      // Build materials payload
+      const materialsPayload = selectedMaterials.map((matId: string) => {
+        const material = materialsList.find((m: any) => m.id === matId);
+        return {
+          material_id: matId,
+          material_name: material ? material.name : 'Unknown',
+          notes: null,
+        };
+      });
+
+      // Build the complete payload
+      const payload = {
+        project_id: currentProject.id,
+        incident_time: incidentTime,
+        area_description: specificArea || null,
+        was_911_required: need911 === 'yes',
+        was_911_called: called911 === 'yes',
+        description_text: bodyPartDescription || null,
+        photos: uploadedPhotos,
+        injured_employees: injuredEmployees,
+        external_workers: externalWorkers,
+        body_parts: bodyParts,
+        first_aid_provided: firstAidProvided === 'yes',
+        tasks: tasksPayload,
+        witnesses: witnessesPayload,
+        equipment: equipmentPayload,
+        materials: materialsPayload,
+      };
+
+      console.log('Submitting injury report payload:', payload);
+
+      // Get the current session for authorization
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session');
+      }
+
+      // Call the Edge Function
+      const { data, error } = await supabase.functions.invoke('submit-injury-report', {
+        body: payload,
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) {
+        console.error('Edge function error:', error);
+        throw error;
+      }
+
+      console.log('Injury report submitted successfully:', data);
+
+      setLoading(false);
+
+      // Show success alert and navigate to home
+      Alert.alert('Success', 'Incident report submitted successfully', [
+        { text: 'OK', onPress: () => router.push('/(tabs)/(home)') }
+      ]);
+    } catch (error: any) {
+      console.error('Error submitting injury report:', error);
+      setLoading(false);
+      Alert.alert('Error', error.message || 'Failed to submit injury report. Please try again.');
+    }
   };
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+        <TouchableOpacity style={styles.backButton} onPress={handleBack} disabled={loading}>
           <IconSymbol
             ios_icon_name="chevron.left"
             android_material_icon_name="arrow-back"
@@ -332,8 +595,19 @@ export default function IncidentReportPage5() {
         </View>
       </ScrollView>
 
-      <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-        <Text style={styles.submitButtonText}>Submit Report</Text>
+      <TouchableOpacity
+        style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+        onPress={handleSubmit}
+        disabled={loading}
+      >
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator color="#FFFFFF" />
+            <Text style={styles.loadingText}>Submitting...</Text>
+          </View>
+        ) : (
+          <Text style={styles.submitButtonText}>Submit Report</Text>
+        )}
       </TouchableOpacity>
     </View>
   );

@@ -241,6 +241,8 @@ export default function IncidentReportPage2() {
   const [subcontractorEntries, setSubcontractorEntries] = useState<SubcontractorEntry[]>(
     params.subcontractors ? JSON.parse(params.subcontractors as string) : []
   );
+  const [showSubcontractorModal, setShowSubcontractorModal] = useState(false); 
+  const [activeSubEntryId, setActiveSubEntryId] = useState<string | null>(null);
 
   // State for other injured
   const [otherInjured, setOtherInjured] = useState<OtherInjuredEntry[]>(
@@ -286,7 +288,7 @@ export default function IncidentReportPage2() {
   // Fetch subcontractors when user selects "Yes" for subcontractor injured
   useEffect(() => {
     const fetchSubcontractors = async () => {
-      if (subcontractorInjured !== 'yes' || !currentProject?.id || !currentEmployee?.org_id) {
+      if (subcontractorInjured !== 'yes' || !currentEmployee?.org_id) {
         return;
       }
 
@@ -294,25 +296,13 @@ export default function IncidentReportPage2() {
       try {
         // Fetch subcontractors assigned to the current project
         const { data, error } = await supabase
-          .from('project_subcontractors')
-          .select(`
-            subcontractor_id,
-            subcontractors!inner (
-              id,
-              name
-            )
-          `)
-          .eq('project_id', currentProject.id)
-          .eq('org_id', currentEmployee.org_id);
+          .from('subcontractors')
+          .select('id, name')
+          .eq('org_id', currentEmployee.org_id)
+          .order('name', { ascending: true });
 
-        if (error) {
-          console.error('Error fetching subcontractors:', error);
-        } else {
-          const formattedSubcontractors = (data || []).map((ps: any) => ({
-            id: ps.subcontractors.id,
-            name: ps.subcontractors.name,
-          }));
-          setSubcontractors(formattedSubcontractors);
+        if (!error) {
+          setSubcontractors(data || []);
         }
       } catch (error) {
         console.error('Exception fetching subcontractors:', error);
@@ -322,7 +312,7 @@ export default function IncidentReportPage2() {
     };
 
     fetchSubcontractors();
-  }, [subcontractorInjured, currentProject?.id, currentEmployee?.org_id]);
+  }, [subcontractorInjured, currentEmployee?.org_id]);
 
   const toggleEmployee = (employeeId: string) => {
     if (selectedEmployees.includes(employeeId)) {
@@ -351,6 +341,18 @@ export default function IncidentReportPage2() {
         s.id === id ? { ...s, companyId, company: subcontractor?.name || '' } : s
       )
     );
+  };
+
+  const openSubcontractorPicker = (entryId: string) => {
+    setActiveSubEntryId(entryId);
+    setShowSubcontractorModal(true);
+  };
+
+  const handleSubcontractorSelected = (subcontractorId: string) => {
+    if (!activeSubEntryId) return;
+    updateSubcontractorCompany(activeSubEntryId, subcontractorId);
+    setShowSubcontractorModal(false);
+    setActiveSubEntryId(null);
   };
 
   const updateSubcontractorWorkers = (id: string, workerNames: string) => {
@@ -525,11 +527,7 @@ export default function IncidentReportPage2() {
                       <Text style={styles.label}>Select subcontractor</Text>
                       <TouchableOpacity
                         style={styles.dropdownButton}
-                        onPress={() => {
-                          // Show subcontractor picker
-                          // For simplicity, using a simple text input here
-                          // In production, you'd use another SearchableDropdown
-                        }}
+                        onPress={() => openSubcontractorPicker(sub.id)}
                       >
                         <Text style={styles.dropdownButtonText}>
                           {sub.company || 'Select from list...'}
@@ -609,6 +607,27 @@ export default function IncidentReportPage2() {
         loading={loadingEmployees}
         initialLimit={20}
       />
+      <SearchableDropdown
+        visible={showSubcontractorModal}
+        onClose={() => {
+          setShowSubcontractorModal(false);
+          setActiveSubEntryId(null);
+        }}
+        title="Select Subcontractor"
+        items={subcontractors}
+        selectedIds={
+          activeSubEntryId
+            ? subcontractorEntries.find((e) => e.id === activeSubEntryId)?.companyId
+              ? [subcontractorEntries.find((e) => e.id === activeSubEntryId)!.companyId]
+              : []
+            : []
+        }
+        onToggleItem={handleSubcontractorSelected}
+        multiSelect={false}
+        loading={loadingSubcontractors}
+        initialLimit={20}
+      />
+
     </View>
   );
 }

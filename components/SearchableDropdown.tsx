@@ -17,7 +17,7 @@ interface SearchableDropdownProps {
   visible: boolean;
   onClose: () => void;
   title: string;
-  items: Array<{ id: string; name: string }>;
+  items: { id: string; name: string }[];
   selectedIds: string[];
   onToggleItem: (id: string) => void;
   multiSelect?: boolean;
