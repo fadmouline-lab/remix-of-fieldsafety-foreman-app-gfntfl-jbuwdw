@@ -6,88 +6,89 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Platform,
+  TextInput,
   Modal,
-  Image,
+  Platform,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { IconSymbol } from '@/components/IconSymbol';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
-import { IconSymbol } from '@/components/IconSymbol';
-import * as ImagePicker from 'expo-image-picker';
 
-const bodyParts = [
-  'Head',
-  'Eye',
-  'Face',
-  'Neck',
-  'Shoulder',
-  'Arm',
-  'Elbow',
-  'Hand',
-  'Finger',
-  'Chest',
-  'Back',
-  'Abdomen',
-  'Hip',
-  'Leg',
-  'Knee',
-  'Ankle',
-  'Foot',
-  'Toe',
-];
+const PLACEHOLDER_TASKS = ['Demolition', 'Loading debris', 'Equipment operation', 'Material handling'];
+const PLACEHOLDER_EMPLOYEES = ['John', 'Mike', 'Alex', 'Carlos'];
 
-const objectSubstances = [
-  'Tool',
-  'Machine',
-  'Material',
-  'Debris',
-  'Chemical',
-  'Other',
-];
+interface Witness {
+  id: string;
+  isEmployee: 'yes' | 'no' | null;
+  employeeName: string;
+  name: string;
+  phone: string;
+}
 
-export default function IncidentReportInjuryDetailsScreen() {
+const IncidentReportPage3: React.FC = () => {
   const router = useRouter();
   const params = useLocalSearchParams();
+  
+  const [incidentTime, setIncidentTime] = useState(new Date());
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [location, setLocation] = useState('');
+  
+  const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
+  const [showTaskDropdown, setShowTaskDropdown] = useState(false);
+  
+  const [firstAidProvided, setFirstAidProvided] = useState<'yes' | 'no' | null>(null);
+  const [anyWitnesses, setAnyWitnesses] = useState<'yes' | 'no' | null>(null);
+  const [witnesses, setWitnesses] = useState<Witness[]>([]);
+  const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
+  const [currentWitnessId, setCurrentWitnessId] = useState<string | null>(null);
 
-  const [selectedBodyPart, setSelectedBodyPart] = useState<string | null>(null);
-  const [showBodyPartPicker, setShowBodyPartPicker] = useState(false);
-  const [selectedObject, setSelectedObject] = useState<string | null>(null);
-  const [showObjectPicker, setShowObjectPicker] = useState(false);
-  const [photos, setPhotos] = useState<string[]>([]);
-
-  const handleAddPhoto = async () => {
-    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
-
-    if (permissionResult.granted === false) {
-      console.log('Camera permission denied');
-      return;
-    }
-
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 0.8,
-    });
-
-    if (!result.canceled && result.assets[0]) {
-      setPhotos([...photos, result.assets[0].uri]);
+  const toggleTask = (task: string) => {
+    if (selectedTasks.includes(task)) {
+      setSelectedTasks(selectedTasks.filter((t) => t !== task));
+    } else {
+      setSelectedTasks([...selectedTasks, task]);
     }
   };
 
-  const handleDeletePhoto = (index: number) => {
-    setPhotos(photos.filter((_, i) => i !== index));
+  const addWitness = () => {
+    const newId = Date.now().toString();
+    setWitnesses([
+      ...witnesses,
+      { id: newId, isEmployee: null, employeeName: '', name: '', phone: '' },
+    ]);
+  };
+
+  const updateWitness = (id: string, updates: Partial<Witness>) => {
+    setWitnesses(witnesses.map((w) => (w.id === id ? { ...w, ...updates } : w)));
+  };
+
+  const removeWitness = (id: string) => {
+    setWitnesses(witnesses.filter((w) => w.id !== id));
+  };
+
+  const handleTimeChange = (event: any, selectedDate?: Date) => {
+    setShowTimePicker(Platform.OS === 'ios');
+    if (selectedDate) {
+      setIncidentTime(selectedDate);
+    }
+  };
+
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   };
 
   const handleNext = () => {
-    console.log('Navigating to Incident Report - Summary');
     router.push({
       pathname: '/incident-report-4',
       params: {
         ...params,
-        bodyPart: selectedBodyPart || '',
-        objectSubstance: selectedObject || '',
-        photos: JSON.stringify(photos),
+        incidentTime: incidentTime.toISOString(),
+        location,
+        selectedTasks: JSON.stringify(selectedTasks),
+        firstAidProvided: firstAidProvided || '',
+        anyWitnesses: anyWitnesses || '',
+        witnesses: JSON.stringify(witnesses),
       },
     });
   };
@@ -96,237 +97,312 @@ export default function IncidentReportInjuryDetailsScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <IconSymbol
-            ios_icon_name="chevron.left"
-            android_material_icon_name="arrow-back"
-            size={24}
-            color={colors.text}
-          />
+          <IconSymbol name="chevron.left" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Incident Report – Injury Details</Text>
+        <Text style={styles.headerTitle}>Incident Details</Text>
         <View style={styles.placeholder} />
       </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Body Part Affected */}
-        <View style={styles.fieldContainer}>
-          <Text style={styles.fieldLabel}>Body Part Affected *</Text>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        {/* Time of Incident */}
+        <Text style={styles.label}>Time of incident</Text>
+        <TouchableOpacity
+          style={styles.timeButton}
+          onPress={() => setShowTimePicker(true)}
+        >
+          <Text style={styles.timeButtonText}>{formatTime(incidentTime)}</Text>
+          <IconSymbol name="clock" size={20} color={colors.text} />
+        </TouchableOpacity>
+
+        {showTimePicker && (
+          <DateTimePicker
+            value={incidentTime}
+            mode="time"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            onChange={handleTimeChange}
+          />
+        )}
+
+        {/* Location */}
+        <Text style={[styles.label, styles.marginTop]}>Specific area where injury occurred</Text>
+        <TextInput
+          style={styles.textInput}
+          value={location}
+          onChangeText={setLocation}
+          placeholder="Enter location"
+          placeholderTextColor={colors.textSecondary}
+        />
+
+        {/* Tasks */}
+        <Text style={[styles.label, styles.marginTop]}>What task(s) were being performed?</Text>
+        <TouchableOpacity
+          style={styles.dropdownButton}
+          onPress={() => setShowTaskDropdown(true)}
+        >
+          <Text style={styles.dropdownButtonText}>
+            {selectedTasks.length > 0 ? `${selectedTasks.length} selected` : 'Select tasks'}
+          </Text>
+          <IconSymbol name="chevron.down" size={20} color={colors.text} />
+        </TouchableOpacity>
+
+        {selectedTasks.length > 0 && (
+          <View style={styles.selectedContainer}>
+            {selectedTasks.map((task) => (
+              <View key={task} style={styles.chip}>
+                <Text style={styles.chipText}>{task}</Text>
+                <TouchableOpacity onPress={() => toggleTask(task)}>
+                  <IconSymbol name="xmark" size={14} color={colors.text} />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* First Aid */}
+        <Text style={[styles.label, styles.marginTop]}>Was first aid provided?</Text>
+        <View style={styles.toggleContainer}>
           <TouchableOpacity
-            style={styles.selectButton}
-            onPress={() => setShowBodyPartPicker(true)}
-            activeOpacity={0.7}
+            style={[styles.toggleButton, firstAidProvided === 'yes' && styles.toggleButtonActive]}
+            onPress={() => setFirstAidProvided('yes')}
           >
-            <Text style={[styles.selectButtonText, !selectedBodyPart && styles.placeholderText]}>
-              {selectedBodyPart || 'Select body part'}
+            <Text
+              style={[styles.toggleText, firstAidProvided === 'yes' && styles.toggleTextActive]}
+            >
+              Yes
             </Text>
-            <IconSymbol
-              ios_icon_name="chevron.down"
-              android_material_icon_name="keyboard-arrow-down"
-              size={20}
-              color={colors.textSecondary}
-            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.toggleButton, firstAidProvided === 'no' && styles.toggleButtonActive]}
+            onPress={() => setFirstAidProvided('no')}
+          >
+            <Text
+              style={[styles.toggleText, firstAidProvided === 'no' && styles.toggleTextActive]}
+            >
+              No
+            </Text>
           </TouchableOpacity>
         </View>
 
-        {/* Object/Substance Involved */}
-        <View style={styles.fieldContainer}>
-          <Text style={styles.fieldLabel}>Object/Substance Involved *</Text>
+        {/* Witnesses */}
+        <Text style={[styles.label, styles.marginTop]}>Any witnesses?</Text>
+        <View style={styles.toggleContainer}>
           <TouchableOpacity
-            style={styles.selectButton}
-            onPress={() => setShowObjectPicker(true)}
-            activeOpacity={0.7}
+            style={[styles.toggleButton, anyWitnesses === 'yes' && styles.toggleButtonActive]}
+            onPress={() => {
+              setAnyWitnesses('yes');
+              if (witnesses.length === 0) addWitness();
+            }}
           >
-            <Text style={[styles.selectButtonText, !selectedObject && styles.placeholderText]}>
-              {selectedObject || 'Select object/substance'}
+            <Text style={[styles.toggleText, anyWitnesses === 'yes' && styles.toggleTextActive]}>
+              Yes
             </Text>
-            <IconSymbol
-              ios_icon_name="chevron.down"
-              android_material_icon_name="keyboard-arrow-down"
-              size={20}
-              color={colors.textSecondary}
-            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.toggleButton, anyWitnesses === 'no' && styles.toggleButtonActive]}
+            onPress={() => {
+              setAnyWitnesses('no');
+              setWitnesses([]);
+            }}
+          >
+            <Text style={[styles.toggleText, anyWitnesses === 'no' && styles.toggleTextActive]}>
+              No
+            </Text>
           </TouchableOpacity>
         </View>
 
-        {/* Photos */}
-        <View style={styles.fieldContainer}>
-          <Text style={styles.fieldLabel}>Photos</Text>
-          <TouchableOpacity
-            style={styles.photoButton}
-            onPress={handleAddPhoto}
-            activeOpacity={0.7}
-          >
-            <IconSymbol
-              ios_icon_name="camera.fill"
-              android_material_icon_name="photo-camera"
-              size={48}
-              color={colors.primary}
-            />
-            <Text style={styles.photoButtonText}>Add Photo</Text>
-          </TouchableOpacity>
+        {/* Witness Entries */}
+        {anyWitnesses === 'yes' && (
+          <>
+            {witnesses.map((witness, index) => (
+              <View key={witness.id} style={styles.witnessEntry}>
+                <View style={styles.witnessHeader}>
+                  <Text style={styles.witnessLabel}>Witness {index + 1}</Text>
+                  {witnesses.length > 1 && (
+                    <TouchableOpacity onPress={() => removeWitness(witness.id)}>
+                      <IconSymbol name="trash" size={18} color={colors.error} />
+                    </TouchableOpacity>
+                  )}
+                </View>
 
-          {photos.length > 0 && (
-            <View style={styles.photosContainer}>
-              {photos.map((photo, index) => (
-                <View key={index} style={styles.photoThumbnail}>
-                  <Image source={{ uri: photo }} style={styles.photoImage} />
+                <Text style={styles.inputLabel}>Was the witness an employee?</Text>
+                <View style={styles.toggleContainer}>
                   <TouchableOpacity
-                    style={styles.deletePhotoButton}
-                    onPress={() => handleDeletePhoto(index)}
-                    activeOpacity={0.7}
+                    style={[
+                      styles.toggleButton,
+                      witness.isEmployee === 'yes' && styles.toggleButtonActive,
+                    ]}
+                    onPress={() => updateWitness(witness.id, { isEmployee: 'yes' })}
                   >
-                    <IconSymbol
-                      ios_icon_name="xmark.circle.fill"
-                      android_material_icon_name="cancel"
-                      size={24}
-                      color={colors.secondary}
-                    />
+                    <Text
+                      style={[
+                        styles.toggleText,
+                        witness.isEmployee === 'yes' && styles.toggleTextActive,
+                      ]}
+                    >
+                      Yes
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.toggleButton,
+                      witness.isEmployee === 'no' && styles.toggleButtonActive,
+                    ]}
+                    onPress={() => updateWitness(witness.id, { isEmployee: 'no' })}
+                  >
+                    <Text
+                      style={[
+                        styles.toggleText,
+                        witness.isEmployee === 'no' && styles.toggleTextActive,
+                      ]}
+                    >
+                      No
+                    </Text>
                   </TouchableOpacity>
                 </View>
-              ))}
-            </View>
-          )}
-        </View>
+
+                {witness.isEmployee === 'yes' && (
+                  <>
+                    <Text style={[styles.inputLabel, styles.marginTopSmall]}>
+                      Select employee
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.dropdownButton}
+                      onPress={() => {
+                        setCurrentWitnessId(witness.id);
+                        setShowEmployeeDropdown(true);
+                      }}
+                    >
+                      <Text style={styles.dropdownButtonText}>
+                        {witness.employeeName || 'Select employee'}
+                      </Text>
+                      <IconSymbol name="chevron.down" size={20} color={colors.text} />
+                    </TouchableOpacity>
+                  </>
+                )}
+
+                {witness.isEmployee === 'no' && (
+                  <>
+                    <Text style={[styles.inputLabel, styles.marginTopSmall]}>Witness name</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      value={witness.name}
+                      onChangeText={(text) => updateWitness(witness.id, { name: text })}
+                      placeholder="Enter name"
+                      placeholderTextColor={colors.textSecondary}
+                    />
+
+                    <Text style={[styles.inputLabel, styles.marginTopSmall]}>
+                      Witness phone number
+                    </Text>
+                    <TextInput
+                      style={styles.textInput}
+                      value={witness.phone}
+                      onChangeText={(text) => updateWitness(witness.id, { phone: text })}
+                      placeholder="Enter phone number"
+                      placeholderTextColor={colors.textSecondary}
+                      keyboardType="phone-pad"
+                    />
+                  </>
+                )}
+              </View>
+            ))}
+
+            <TouchableOpacity style={styles.addButton} onPress={addWitness}>
+              <IconSymbol name="plus" size={20} color={colors.primary} />
+              <Text style={styles.addButtonText}>Add Another Witness</Text>
+            </TouchableOpacity>
+          </>
+        )}
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity
-          style={styles.nextButton}
-          onPress={handleNext}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.nextButtonText}>NEXT</Text>
+        <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
+          <Text style={styles.nextButtonText}>Next</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Body Part Picker Modal */}
-      <Modal
-        visible={showBodyPartPicker}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowBodyPartPicker(false)}
-      >
+      {/* Task Dropdown Modal */}
+      <Modal visible={showTaskDropdown} transparent animationType="fade">
         <TouchableOpacity
           style={styles.modalOverlay}
           activeOpacity={1}
-          onPress={() => setShowBodyPartPicker(false)}
+          onPress={() => setShowTaskDropdown(false)}
         >
-          <View style={styles.pickerContainer}>
-            <View style={styles.pickerHeader}>
-              <Text style={styles.pickerTitle}>Select Body Part</Text>
-              <TouchableOpacity onPress={() => setShowBodyPartPicker(false)}>
-                <IconSymbol
-                  ios_icon_name="xmark"
-                  android_material_icon_name="close"
-                  size={24}
-                  color={colors.text}
-                />
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Select Tasks</Text>
+            {PLACEHOLDER_TASKS.map((task) => (
+              <TouchableOpacity
+                key={task}
+                style={styles.modalItem}
+                onPress={() => toggleTask(task)}
+              >
+                <Text style={styles.modalItemText}>{task}</Text>
+                {selectedTasks.includes(task) && (
+                  <IconSymbol name="checkmark" size={20} color={colors.primary} />
+                )}
               </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.pickerScroll}>
-              {bodyParts.map((part, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={styles.pickerOption}
-                  onPress={() => {
-                    setSelectedBodyPart(part);
-                    setShowBodyPartPicker(false);
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.pickerOptionText}>{part}</Text>
-                  {selectedBodyPart === part && (
-                    <IconSymbol
-                      ios_icon_name="checkmark.circle.fill"
-                      android_material_icon_name="check-circle"
-                      size={24}
-                      color={colors.primary}
-                    />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+            ))}
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setShowTaskDropdown(false)}
+            >
+              <Text style={styles.modalCloseButtonText}>Done</Text>
+            </TouchableOpacity>
           </View>
         </TouchableOpacity>
       </Modal>
 
-      {/* Object/Substance Picker Modal */}
-      <Modal
-        visible={showObjectPicker}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowObjectPicker(false)}
-      >
+      {/* Employee Dropdown Modal */}
+      <Modal visible={showEmployeeDropdown} transparent animationType="fade">
         <TouchableOpacity
           style={styles.modalOverlay}
           activeOpacity={1}
-          onPress={() => setShowObjectPicker(false)}
+          onPress={() => setShowEmployeeDropdown(false)}
         >
-          <View style={styles.pickerContainer}>
-            <View style={styles.pickerHeader}>
-              <Text style={styles.pickerTitle}>Select Object/Substance</Text>
-              <TouchableOpacity onPress={() => setShowObjectPicker(false)}>
-                <IconSymbol
-                  ios_icon_name="xmark"
-                  android_material_icon_name="close"
-                  size={24}
-                  color={colors.text}
-                />
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Select Employee</Text>
+            {PLACEHOLDER_EMPLOYEES.map((employee) => (
+              <TouchableOpacity
+                key={employee}
+                style={styles.modalItem}
+                onPress={() => {
+                  if (currentWitnessId) {
+                    updateWitness(currentWitnessId, { employeeName: employee });
+                  }
+                  setShowEmployeeDropdown(false);
+                }}
+              >
+                <Text style={styles.modalItemText}>{employee}</Text>
               </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.pickerScroll}>
-              {objectSubstances.map((obj, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={styles.pickerOption}
-                  onPress={() => {
-                    setSelectedObject(obj);
-                    setShowObjectPicker(false);
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.pickerOptionText}>{obj}</Text>
-                  {selectedObject === obj && (
-                    <IconSymbol
-                      ios_icon_name="checkmark.circle.fill"
-                      android_material_icon_name="check-circle"
-                      size={24}
-                      color={colors.primary}
-                    />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+            ))}
           </View>
         </TouchableOpacity>
       </Modal>
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-    paddingTop: Platform.OS === 'android' ? 48 : 60,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingBottom: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.background,
   },
   backButton: {
     padding: 8,
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '600',
     color: colors.text,
   },
   placeholder: {
@@ -336,148 +412,212 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 120,
+    padding: 16,
+    paddingBottom: 100,
   },
-  fieldContainer: {
-    marginBottom: 24,
-  },
-  fieldLabel: {
-    fontSize: 14,
+  label: {
+    fontSize: 16,
     fontWeight: '600',
+    color: colors.text,
+    marginBottom: 12,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '500',
     color: colors.text,
     marginBottom: 8,
   },
-  selectButton: {
+  marginTop: {
+    marginTop: 24,
+  },
+  marginTopSmall: {
+    marginTop: 12,
+  },
+  timeButton: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 16,
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.border,
-    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
-    elevation: 3,
+    backgroundColor: colors.background,
   },
-  selectButtonText: {
+  timeButtonText: {
+    fontSize: 16,
+    color: colors.text,
+  },
+  textInput: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+    fontSize: 16,
+    color: colors.text,
+  },
+  dropdownButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  dropdownButtonText: {
+    fontSize: 16,
+    color: colors.text,
+  },
+  selectedContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    backgroundColor: colors.primaryLight,
+  },
+  chipText: {
+    fontSize: 14,
+    color: colors.primary,
+  },
+  toggleContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  toggleButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+  },
+  toggleButtonActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  toggleText: {
     fontSize: 16,
     fontWeight: '500',
     color: colors.text,
   },
-  placeholderText: {
-    color: colors.textSecondary,
+  toggleTextActive: {
+    color: '#fff',
   },
-  photoButton: {
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
+  witnessEntry: {
+    marginTop: 16,
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
     borderColor: colors.border,
-    borderStyle: 'dashed',
-    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
-    elevation: 3,
+    backgroundColor: colors.cardBackground,
   },
-  photoButtonText: {
+  witnessHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  witnessLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.primary,
-    marginTop: 8,
+    color: colors.text,
   },
-  photosContainer: {
+  addButton: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginTop: 16,
-  },
-  photoThumbnail: {
-    width: 100,
-    height: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    marginTop: 12,
     borderRadius: 8,
-    overflow: 'hidden',
-    position: 'relative',
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: colors.primary,
   },
-  photoImage: {
-    width: '100%',
-    height: '100%',
-  },
-  deletePhotoButton: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-    backgroundColor: colors.card,
-    borderRadius: 12,
+  addButtonText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: colors.primary,
   },
   footer: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: colors.card,
-    padding: 20,
+    padding: 16,
+    backgroundColor: colors.background,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    boxShadow: '0px -2px 8px rgba(0, 0, 0, 0.1)',
-    elevation: 8,
   },
   nextButton: {
     backgroundColor: colors.primary,
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: 8,
     alignItems: 'center',
-    justifyContent: 'center',
   },
   nextButtonText: {
     fontSize: 16,
-    fontWeight: '700',
-    color: colors.card,
-    letterSpacing: 0.5,
+    fontWeight: '600',
+    color: '#fff',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
   },
-  pickerContainer: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    width: '100%',
-    maxWidth: 400,
+  modalContent: {
+    width: '80%',
+    backgroundColor: colors.background,
+    borderRadius: 12,
+    padding: 20,
     maxHeight: '70%',
-    boxShadow: '0px 4px 16px rgba(0, 0, 0, 0.2)',
-    elevation: 8,
   },
-  pickerHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  pickerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
     color: colors.text,
+    marginBottom: 16,
   },
-  pickerScroll: {
-    maxHeight: 400,
-  },
-  pickerOption: {
+  modalItem: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    justifyContent: 'space-between',
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  pickerOptionText: {
+  modalItemText: {
     fontSize: 16,
-    fontWeight: '500',
     color: colors.text,
+  },
+  modalCloseButton: {
+    marginTop: 16,
+    paddingVertical: 12,
+    backgroundColor: colors.primary,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  modalCloseButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
   },
 });
+
+export default IncidentReportPage3;

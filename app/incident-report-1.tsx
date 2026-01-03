@@ -7,377 +7,176 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
-  Modal,
-  TextInput,
+  Image,
+  Alert,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import { IconSymbol } from '@/components/IconSymbol';
 import { useRouter } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
-import { IconSymbol } from '@/components/IconSymbol';
-import DateTimePicker from '@react-native-community/datetimepicker';
 
-const placeholderWorkers = [
-  { name: 'Juan Perez', title: 'Foreman' },
-  { name: 'Maria Lopez', title: 'Laborer' },
-  { name: 'Samir Khan', title: 'Equipment Operator' },
-  { name: 'Alex Johnson', title: 'Safety Officer' },
-  { name: 'Carlos Rodriguez', title: 'Laborer' },
-  { name: 'Emily Chen', title: 'Site Supervisor' },
-];
-
-export default function IncidentReportWorkerScreen() {
+const IncidentReportPage1: React.FC = () => {
   const router = useRouter();
-  const [selectedWorker, setSelectedWorker] = useState<typeof placeholderWorkers[0] | null>(null);
-  const [showWorkerPicker, setShowWorkerPicker] = useState(false);
-  const [incidentDate, setIncidentDate] = useState(new Date());
-  const [incidentTime, setIncidentTime] = useState(new Date());
-  const [showTimePicker, setShowTimePicker] = useState(false);
-  const [area, setArea] = useState('');
-  const [location, setLocation] = useState('123 Main Street, Chicago, IL 60611');
-  const [isEditingLocation, setIsEditingLocation] = useState(false);
-  const [tempLocation, setTempLocation] = useState(location);
+  const [need911, setNeed911] = useState<'yes' | 'no' | null>(null);
+  const [called911, setCalled911] = useState<'yes' | 'no' | null>(null);
+  const [photos, setPhotos] = useState<string[]>([]);
 
-  const handleNext = () => {
-    if (!selectedWorker) {
-      console.log('Please select a worker');
+  const handleTakePhoto = async () => {
+    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permissionResult.granted) {
+      Alert.alert('Permission Required', 'Camera permission is required to take photos.');
       return;
     }
 
-    console.log('Navigating to Incident Report - Description');
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
+      allowsEditing: false,
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setPhotos([...photos, result.assets[0].uri]);
+    }
+  };
+
+  const handleRemovePhoto = (index: number) => {
+    setPhotos(photos.filter((_, i) => i !== index));
+  };
+
+  const handleNext = () => {
     router.push({
       pathname: '/incident-report-2',
       params: {
-        employeeName: selectedWorker.name,
-        jobTitle: selectedWorker.title,
-        incidentDate: incidentDate.toISOString(),
-        incidentTime: incidentTime.toISOString(),
-        area: area,
-        location: location,
+        need911: need911 || '',
+        called911: called911 || '',
+        photos: JSON.stringify(photos),
       },
     });
   };
 
-  const handleTimeChange = (event: any, selectedTime?: Date) => {
-    if (Platform.OS === 'android') {
-      setShowTimePicker(false);
-    }
-    if (selectedTime) {
-      setIncidentTime(selectedTime);
-      if (Platform.OS === 'ios') {
-        setShowTimePicker(false);
-      }
-    }
-  };
-
-  const handleLocationConfirm = () => {
-    setLocation(tempLocation);
-    setIsEditingLocation(false);
-  };
-
-  const handleLocationCancel = () => {
-    setTempLocation(location);
-    setIsEditingLocation(false);
-  };
-
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString('en-US', {
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  };
-
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+  const isNextDisabled = need911 === 'yes' && called911 === 'no';
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <IconSymbol
-            ios_icon_name="chevron.left"
-            android_material_icon_name="arrow-back"
-            size={24}
-            color={colors.text}
-          />
+          <IconSymbol name="chevron.left" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Incident Report – Worker</Text>
+        <Text style={styles.headerTitle}>Emergency & Injury Photos</Text>
         <View style={styles.placeholder} />
       </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Employee Name */}
-        <View style={styles.fieldContainer}>
-          <Text style={styles.fieldLabel}>Employee Name *</Text>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        {/* 911 Toggle */}
+        <Text style={styles.label}>Do you need to call 911?</Text>
+        <View style={styles.toggleContainer}>
           <TouchableOpacity
-            style={styles.selectButton}
-            onPress={() => setShowWorkerPicker(true)}
-            activeOpacity={0.7}
+            style={[styles.toggleButton, need911 === 'yes' && styles.toggleButtonActive]}
+            onPress={() => {
+              setNeed911('yes');
+              setCalled911(null);
+            }}
           >
-            <Text style={[styles.selectButtonText, !selectedWorker && styles.placeholderText]}>
-              {selectedWorker ? selectedWorker.name : 'Select employee'}
+            <Text style={[styles.toggleText, need911 === 'yes' && styles.toggleTextActive]}>
+              Yes
             </Text>
-            <IconSymbol
-              ios_icon_name="chevron.down"
-              android_material_icon_name="keyboard-arrow-down"
-              size={20}
-              color={colors.textSecondary}
-            />
           </TouchableOpacity>
-        </View>
-
-        {/* Job Title */}
-        {selectedWorker && (
-          <View style={styles.fieldContainer}>
-            <Text style={styles.fieldLabel}>Job Title</Text>
-            <View style={styles.readOnlyField}>
-              <Text style={styles.readOnlyText}>{selectedWorker.title}</Text>
-            </View>
-          </View>
-        )}
-
-        {/* Date of Incident */}
-        <View style={styles.fieldContainer}>
-          <Text style={styles.fieldLabel}>Date of Incident</Text>
-          <View style={styles.readOnlyField}>
-            <Text style={styles.readOnlyText}>{formatDate(incidentDate)}</Text>
-          </View>
-        </View>
-
-        {/* Time of Incident */}
-        <View style={styles.fieldContainer}>
-          <Text style={styles.fieldLabel}>Time of Incident *</Text>
           <TouchableOpacity
-            style={styles.selectButton}
-            onPress={() => setShowTimePicker(true)}
-            activeOpacity={0.7}
+            style={[styles.toggleButton, need911 === 'no' && styles.toggleButtonActive]}
+            onPress={() => {
+              setNeed911('no');
+              setCalled911(null);
+            }}
           >
-            <Text style={styles.selectButtonText}>{formatTime(incidentTime)}</Text>
-            <IconSymbol
-              ios_icon_name="clock.fill"
-              android_material_icon_name="schedule"
-              size={20}
-              color={colors.textSecondary}
-            />
+            <Text style={[styles.toggleText, need911 === 'no' && styles.toggleTextActive]}>
+              No
+            </Text>
           </TouchableOpacity>
         </View>
 
-        {/* Area */}
-        <View style={styles.fieldContainer}>
-          <Text style={styles.fieldLabel}>Area</Text>
-          <TextInput
-            style={styles.textInput}
-            value={area}
-            onChangeText={setArea}
-            placeholder="Where exactly did the incident happen on the job site?"
-            placeholderTextColor={colors.textSecondary}
-          />
-        </View>
-
-        {/* Location */}
-        <View style={styles.fieldContainer}>
-          <Text style={styles.fieldLabel}>Location</Text>
-          {!isEditingLocation ? (
-            <View style={styles.locationRow}>
-              <Text style={styles.locationText}>{location}</Text>
+        {/* Called 911 Toggle (conditional) */}
+        {need911 === 'yes' && (
+          <>
+            <Text style={[styles.label, styles.marginTop]}>I have called 911</Text>
+            <View style={styles.toggleContainer}>
               <TouchableOpacity
-                onPress={() => {
-                  setIsEditingLocation(true);
-                  setTempLocation(location);
-                }}
-                style={styles.editButton}
+                style={[styles.toggleButton, called911 === 'yes' && styles.toggleButtonActive]}
+                onPress={() => setCalled911('yes')}
               >
-                <IconSymbol
-                  ios_icon_name="pencil"
-                  android_material_icon_name="edit"
-                  size={20}
-                  color={colors.primary}
-                />
+                <Text style={[styles.toggleText, called911 === 'yes' && styles.toggleTextActive]}>
+                  Yes
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.toggleButton, called911 === 'no' && styles.toggleButtonActive]}
+                onPress={() => setCalled911('no')}
+              >
+                <Text style={[styles.toggleText, called911 === 'no' && styles.toggleTextActive]}>
+                  No
+                </Text>
               </TouchableOpacity>
             </View>
-          ) : (
-            <View style={styles.editLocationContainer}>
-              <TextInput
-                style={styles.textInput}
-                value={tempLocation}
-                onChangeText={setTempLocation}
-                placeholder="Enter location"
-                placeholderTextColor={colors.textSecondary}
-                multiline
-                autoFocus
-              />
-              <View style={styles.editActions}>
-                <TouchableOpacity onPress={handleLocationConfirm} style={styles.actionButton}>
-                  <IconSymbol
-                    ios_icon_name="checkmark.circle.fill"
-                    android_material_icon_name="check-circle"
-                    size={28}
-                    color={colors.success}
-                  />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={handleLocationCancel} style={styles.actionButton}>
-                  <IconSymbol
-                    ios_icon_name="xmark.circle.fill"
-                    android_material_icon_name="cancel"
-                    size={28}
-                    color={colors.secondary}
-                  />
+          </>
+        )}
+
+        {/* Photo Capture Section */}
+        <Text style={[styles.label, styles.marginTop]}>Photos</Text>
+        <TouchableOpacity style={styles.photoButton} onPress={handleTakePhoto}>
+          <IconSymbol name="camera" size={20} color={colors.primary} />
+          <Text style={styles.photoButtonText}>Take Photo</Text>
+        </TouchableOpacity>
+
+        {photos.length > 0 && (
+          <View style={styles.photoGrid}>
+            {photos.map((uri, index) => (
+              <View key={index} style={styles.photoThumbnail}>
+                <Image source={{ uri }} style={styles.thumbnailImage} />
+                <TouchableOpacity
+                  style={styles.removePhotoButton}
+                  onPress={() => handleRemovePhoto(index)}
+                >
+                  <IconSymbol name="xmark" size={16} color="#fff" />
                 </TouchableOpacity>
               </View>
-            </View>
-          )}
-        </View>
+            ))}
+          </View>
+        )}
       </ScrollView>
 
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[styles.nextButton, !selectedWorker && styles.nextButtonDisabled]}
+          style={[styles.nextButton, isNextDisabled && styles.nextButtonDisabled]}
           onPress={handleNext}
-          activeOpacity={0.7}
-          disabled={!selectedWorker}
+          disabled={isNextDisabled}
         >
-          <Text style={styles.nextButtonText}>NEXT</Text>
+          <Text style={styles.nextButtonText}>Next</Text>
         </TouchableOpacity>
       </View>
-
-      {/* Worker Picker Modal */}
-      <Modal
-        visible={showWorkerPicker}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowWorkerPicker(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowWorkerPicker(false)}
-        >
-          <View style={styles.pickerContainer}>
-            <View style={styles.pickerHeader}>
-              <Text style={styles.pickerTitle}>Select Employee</Text>
-              <TouchableOpacity onPress={() => setShowWorkerPicker(false)}>
-                <IconSymbol
-                  ios_icon_name="xmark"
-                  android_material_icon_name="close"
-                  size={24}
-                  color={colors.text}
-                />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.pickerScroll}>
-              {placeholderWorkers.map((worker, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={styles.workerOption}
-                  onPress={() => {
-                    setSelectedWorker(worker);
-                    setShowWorkerPicker(false);
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <View>
-                    <Text style={styles.workerName}>{worker.name}</Text>
-                    <Text style={styles.workerTitle}>{worker.title}</Text>
-                  </View>
-                  {selectedWorker?.name === worker.name && (
-                    <IconSymbol
-                      ios_icon_name="checkmark.circle.fill"
-                      android_material_icon_name="check-circle"
-                      size={24}
-                      color={colors.primary}
-                    />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </TouchableOpacity>
-      </Modal>
-
-      {/* Time Picker Modal for iOS */}
-      {Platform.OS === 'ios' && showTimePicker && (
-        <Modal
-          visible={showTimePicker}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setShowTimePicker(false)}
-        >
-          <TouchableOpacity
-            style={styles.modalOverlay}
-            activeOpacity={1}
-            onPress={() => setShowTimePicker(false)}
-          >
-            <View style={styles.timePickerContainer}>
-              <View style={styles.timePickerHeader}>
-                <Text style={styles.pickerTitle}>Select Time</Text>
-                <TouchableOpacity onPress={() => setShowTimePicker(false)}>
-                  <IconSymbol
-                    ios_icon_name="xmark"
-                    android_material_icon_name="close"
-                    size={24}
-                    color={colors.text}
-                  />
-                </TouchableOpacity>
-              </View>
-              <DateTimePicker
-                value={incidentTime}
-                mode="time"
-                is24Hour={false}
-                display="spinner"
-                onChange={handleTimeChange}
-                style={styles.timePicker}
-              />
-              <TouchableOpacity
-                style={styles.doneButton}
-                onPress={() => setShowTimePicker(false)}
-              >
-                <Text style={styles.doneButtonText}>Done</Text>
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
-        </Modal>
-      )}
-
-      {/* Time Picker for Android */}
-      {Platform.OS === 'android' && showTimePicker && (
-        <DateTimePicker
-          value={incidentTime}
-          mode="time"
-          is24Hour={false}
-          display="default"
-          onChange={handleTimeChange}
-        />
-      )}
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-    paddingTop: Platform.OS === 'android' ? 48 : 60,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingBottom: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.background,
   },
   backButton: {
     padding: 8,
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '600',
     color: colors.text,
   },
   placeholder: {
@@ -387,203 +186,112 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 120,
+    padding: 16,
+    paddingBottom: 100,
   },
-  fieldContainer: {
-    marginBottom: 24,
-  },
-  fieldLabel: {
-    fontSize: 14,
+  label: {
+    fontSize: 16,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 8,
+    marginBottom: 12,
   },
-  selectButton: {
+  marginTop: {
+    marginTop: 24,
+  },
+  toggleContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
-    elevation: 3,
+    gap: 12,
   },
-  selectButtonText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: colors.text,
-  },
-  placeholderText: {
-    color: colors.textSecondary,
-  },
-  readOnlyField: {
-    backgroundColor: colors.highlight,
-    borderRadius: 12,
-    padding: 16,
-  },
-  readOnlyText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: colors.text,
-  },
-  locationRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
-    elevation: 3,
-  },
-  locationText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: colors.text,
+  toggleButton: {
     flex: 1,
-    marginRight: 12,
-  },
-  editButton: {
-    padding: 4,
-  },
-  editLocationContainer: {
-    gap: 12,
-  },
-  textInput: {
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.border,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+  },
+  toggleButtonActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  toggleText: {
     fontSize: 16,
     fontWeight: '500',
     color: colors.text,
-    minHeight: 60,
-    textAlignVertical: 'top',
-    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
-    elevation: 3,
   },
-  editActions: {
+  toggleTextActive: {
+    color: '#fff',
+  },
+  photoButton: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: colors.background,
   },
-  actionButton: {
-    padding: 4,
+  photoButtonText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: colors.primary,
+  },
+  photoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginTop: 16,
+  },
+  photoThumbnail: {
+    width: 100,
+    height: 100,
+    borderRadius: 8,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  thumbnailImage: {
+    width: '100%',
+    height: '100%',
+  },
+  removePhotoButton: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   footer: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: colors.card,
-    padding: 20,
+    padding: 16,
+    backgroundColor: colors.background,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    boxShadow: '0px -2px 8px rgba(0, 0, 0, 0.1)',
-    elevation: 8,
   },
   nextButton: {
     backgroundColor: colors.primary,
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: 8,
     alignItems: 'center',
-    justifyContent: 'center',
   },
   nextButtonDisabled: {
     backgroundColor: colors.border,
-    opacity: 0.5,
   },
   nextButtonText: {
     fontSize: 16,
-    fontWeight: '700',
-    color: colors.card,
-    letterSpacing: 0.5,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  pickerContainer: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    width: '100%',
-    maxWidth: 400,
-    maxHeight: '70%',
-    boxShadow: '0px 4px 16px rgba(0, 0, 0, 0.2)',
-    elevation: 8,
-  },
-  pickerHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  pickerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  pickerScroll: {
-    maxHeight: 400,
-  },
-  workerOption: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  workerName: {
-    fontSize: 16,
     fontWeight: '600',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  workerTitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  timePickerContainer: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    width: '100%',
-    maxWidth: 400,
-    padding: 20,
-    boxShadow: '0px 4px 16px rgba(0, 0, 0, 0.2)',
-    elevation: 8,
-  },
-  timePickerHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  timePicker: {
-    width: '100%',
-    height: 200,
-  },
-  doneButton: {
-    backgroundColor: colors.primary,
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  doneButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.card,
+    color: '#fff',
   },
 });
+
+export default IncidentReportPage1;
