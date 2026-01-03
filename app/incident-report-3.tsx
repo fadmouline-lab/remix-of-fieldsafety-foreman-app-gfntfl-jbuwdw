@@ -1,4 +1,7 @@
 
+import { colors } from '@/styles/commonStyles';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import React, { useState } from 'react';
 import {
   View,
@@ -10,13 +13,7 @@ import {
   Modal,
   Platform,
 } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { IconSymbol } from '@/components/IconSymbol';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { colors } from '@/styles/commonStyles';
-
-const PLACEHOLDER_TASKS = ['Demolition', 'Loading debris', 'Equipment operation', 'Material handling'];
-const PLACEHOLDER_EMPLOYEES = ['John', 'Mike', 'Alex', 'Carlos'];
 
 interface Witness {
   id: string;
@@ -26,22 +23,242 @@ interface Witness {
   phone: string;
 }
 
-const IncidentReportPage3: React.FC = () => {
+const PLACEHOLDER_TASKS = ['Demolition', 'Loading debris', 'Equipment operation', 'Material handling'];
+const PLACEHOLDER_EMPLOYEES = ['John', 'Mike', 'Alex', 'Carlos'];
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 20,
+    backgroundColor: colors.background,
+  },
+  backButton: {
+    padding: 8,
+    marginRight: 12,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.text,
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 20,
+    paddingBottom: 120,
+  },
+  section: {
+    marginBottom: 24,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 12,
+  },
+  input: {
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    color: colors.text,
+  },
+  timeButton: {
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  timeButtonText: {
+    fontSize: 16,
+    color: colors.text,
+  },
+  dropdownButton: {
+    backgroundColor: colors.card,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  dropdownButtonText: {
+    fontSize: 16,
+    color: colors.text,
+  },
+  selectedTasks: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+  },
+  chip: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  chipText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  toggleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.card,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  toggleLabel: {
+    fontSize: 16,
+    color: colors.text,
+    flex: 1,
+  },
+  toggleButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  toggleButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  toggleButtonActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  toggleButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  toggleButtonTextActive: {
+    color: '#FFFFFF',
+  },
+  witnessCard: {
+    backgroundColor: colors.card,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  removeButton: {
+    alignSelf: 'flex-end',
+    padding: 4,
+  },
+  addButton: {
+    backgroundColor: colors.card,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  addButtonText: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: colors.background,
+    borderRadius: 16,
+    padding: 20,
+    width: '85%',
+    maxHeight: '70%',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 16,
+  },
+  modalOption: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  modalOptionText: {
+    fontSize: 16,
+    color: colors.text,
+  },
+  modalCloseButton: {
+    marginTop: 16,
+    padding: 16,
+    backgroundColor: colors.card,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  modalCloseButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  nextButton: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: colors.primary,
+    padding: 18,
+    alignItems: 'center',
+  },
+  nextButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+});
+
+export default function IncidentReportPage3() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  
-  const [incidentTime, setIncidentTime] = useState(new Date());
+
+  const [incidentTime, setIncidentTime] = useState<Date>(
+    params.incidentTime ? new Date(params.incidentTime as string) : new Date()
+  );
   const [showTimePicker, setShowTimePicker] = useState(false);
-  const [location, setLocation] = useState('');
-  
-  const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
-  const [showTaskDropdown, setShowTaskDropdown] = useState(false);
-  
-  const [firstAidProvided, setFirstAidProvided] = useState<'yes' | 'no' | null>(null);
-  const [anyWitnesses, setAnyWitnesses] = useState<'yes' | 'no' | null>(null);
-  const [witnesses, setWitnesses] = useState<Witness[]>([]);
-  const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
-  const [currentWitnessId, setCurrentWitnessId] = useState<string | null>(null);
+  const [specificArea, setSpecificArea] = useState(params.specificArea as string || '');
+  const [selectedTasks, setSelectedTasks] = useState<string[]>(
+    params.selectedTasks ? JSON.parse(params.selectedTasks as string) : []
+  );
+  const [showTaskModal, setShowTaskModal] = useState(false);
+  const [firstAidProvided, setFirstAidProvided] = useState<'yes' | 'no' | null>(
+    params.firstAidProvided ? (params.firstAidProvided as 'yes' | 'no') : null
+  );
+  const [anyWitnesses, setAnyWitnesses] = useState<'yes' | 'no' | null>(
+    params.anyWitnesses ? (params.anyWitnesses as 'yes' | 'no') : null
+  );
+  const [witnesses, setWitnesses] = useState<Witness[]>(
+    params.witnesses ? JSON.parse(params.witnesses as string) : []
+  );
 
   const toggleTask = (task: string) => {
     if (selectedTasks.includes(task)) {
@@ -52,10 +269,9 @@ const IncidentReportPage3: React.FC = () => {
   };
 
   const addWitness = () => {
-    const newId = Date.now().toString();
     setWitnesses([
       ...witnesses,
-      { id: newId, isEmployee: null, employeeName: '', name: '', phone: '' },
+      { id: Date.now().toString(), isEmployee: null, employeeName: '', name: '', phone: '' },
     ]);
   };
 
@@ -84,7 +300,7 @@ const IncidentReportPage3: React.FC = () => {
       params: {
         ...params,
         incidentTime: incidentTime.toISOString(),
-        location,
+        specificArea,
         selectedTasks: JSON.stringify(selectedTasks),
         firstAidProvided: firstAidProvided || '',
         anyWitnesses: anyWitnesses || '',
@@ -93,531 +309,315 @@ const IncidentReportPage3: React.FC = () => {
     });
   };
 
+  const handleBack = () => {
+    router.push({
+      pathname: '/incident-report-2',
+      params: {
+        need911: params.need911 as string,
+        called911: params.called911 as string,
+        photos: params.photos as string,
+        selectedEmployees: params.selectedEmployees as string,
+        subcontractorInjured: params.subcontractorInjured as string,
+        subcontractors: params.subcontractors as string,
+        otherInjured: params.otherInjured as string,
+      },
+    });
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <IconSymbol name="chevron.left" size={24} color={colors.text} />
+        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+          <IconSymbol 
+            ios_icon_name="chevron.left" 
+            android_material_icon_name="arrow-back" 
+            size={24} 
+            color={colors.primary} 
+          />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Incident Details</Text>
-        <View style={styles.placeholder} />
       </View>
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        {/* Time of Incident */}
-        <Text style={styles.label}>Time of incident</Text>
-        <TouchableOpacity
-          style={styles.timeButton}
-          onPress={() => setShowTimePicker(true)}
-        >
-          <Text style={styles.timeButtonText}>{formatTime(incidentTime)}</Text>
-          <IconSymbol name="clock" size={20} color={colors.text} />
-        </TouchableOpacity>
+      <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+        <View style={styles.section}>
+          <Text style={styles.label}>Time of incident</Text>
+          <TouchableOpacity style={styles.timeButton} onPress={() => setShowTimePicker(true)}>
+            <Text style={styles.timeButtonText}>{formatTime(incidentTime)}</Text>
+            <IconSymbol 
+              ios_icon_name="clock" 
+              android_material_icon_name="access-time" 
+              size={20} 
+              color={colors.text} 
+            />
+          </TouchableOpacity>
+          {showTimePicker && (
+            <DateTimePicker
+              value={incidentTime}
+              mode="time"
+              display="default"
+              onChange={handleTimeChange}
+            />
+          )}
+        </View>
 
-        {showTimePicker && (
-          <DateTimePicker
-            value={incidentTime}
-            mode="time"
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-            onChange={handleTimeChange}
+        <View style={styles.section}>
+          <Text style={styles.label}>Specific area where injury occurred</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Enter location..."
+            value={specificArea}
+            onChangeText={setSpecificArea}
           />
-        )}
+        </View>
 
-        {/* Location */}
-        <Text style={[styles.label, styles.marginTop]}>Specific area where injury occurred</Text>
-        <TextInput
-          style={styles.textInput}
-          value={location}
-          onChangeText={setLocation}
-          placeholder="Enter location"
-          placeholderTextColor={colors.textSecondary}
-        />
+        <View style={styles.section}>
+          <Text style={styles.label}>What task(s) were being performed?</Text>
+          <TouchableOpacity
+            style={styles.dropdownButton}
+            onPress={() => setShowTaskModal(true)}
+          >
+            <Text style={styles.dropdownButtonText}>
+              {selectedTasks.length > 0
+                ? `${selectedTasks.length} selected`
+                : 'Select tasks'}
+            </Text>
+            <IconSymbol 
+              ios_icon_name="chevron.down" 
+              android_material_icon_name="arrow-drop-down" 
+              size={20} 
+              color={colors.text} 
+            />
+          </TouchableOpacity>
 
-        {/* Tasks */}
-        <Text style={[styles.label, styles.marginTop]}>What task(s) were being performed?</Text>
-        <TouchableOpacity
-          style={styles.dropdownButton}
-          onPress={() => setShowTaskDropdown(true)}
-        >
-          <Text style={styles.dropdownButtonText}>
-            {selectedTasks.length > 0 ? `${selectedTasks.length} selected` : 'Select tasks'}
-          </Text>
-          <IconSymbol name="chevron.down" size={20} color={colors.text} />
-        </TouchableOpacity>
+          {selectedTasks.length > 0 && (
+            <View style={styles.selectedTasks}>
+              {selectedTasks.map((task) => (
+                <View key={task} style={styles.chip}>
+                  <Text style={styles.chipText}>{task}</Text>
+                  <TouchableOpacity onPress={() => toggleTask(task)}>
+                    <IconSymbol 
+                      ios_icon_name="xmark" 
+                      android_material_icon_name="close" 
+                      size={14} 
+                      color="#FFFFFF" 
+                    />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
 
-        {selectedTasks.length > 0 && (
-          <View style={styles.selectedContainer}>
-            {selectedTasks.map((task) => (
-              <View key={task} style={styles.chip}>
-                <Text style={styles.chipText}>{task}</Text>
-                <TouchableOpacity onPress={() => toggleTask(task)}>
-                  <IconSymbol name="xmark" size={14} color={colors.text} />
-                </TouchableOpacity>
-              </View>
-            ))}
+        <View style={styles.section}>
+          <View style={styles.toggleContainer}>
+            <Text style={styles.toggleLabel}>Was first aid provided?</Text>
+            <View style={styles.toggleButtons}>
+              <TouchableOpacity
+                style={[
+                  styles.toggleButton,
+                  firstAidProvided === 'yes' && styles.toggleButtonActive,
+                ]}
+                onPress={() => setFirstAidProvided('yes')}
+              >
+                <Text
+                  style={[
+                    styles.toggleButtonText,
+                    firstAidProvided === 'yes' && styles.toggleButtonTextActive,
+                  ]}
+                >
+                  Yes
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.toggleButton,
+                  firstAidProvided === 'no' && styles.toggleButtonActive,
+                ]}
+                onPress={() => setFirstAidProvided('no')}
+              >
+                <Text
+                  style={[
+                    styles.toggleButtonText,
+                    firstAidProvided === 'no' && styles.toggleButtonTextActive,
+                  ]}
+                >
+                  No
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        )}
-
-        {/* First Aid */}
-        <Text style={[styles.label, styles.marginTop]}>Was first aid provided?</Text>
-        <View style={styles.toggleContainer}>
-          <TouchableOpacity
-            style={[styles.toggleButton, firstAidProvided === 'yes' && styles.toggleButtonActive]}
-            onPress={() => setFirstAidProvided('yes')}
-          >
-            <Text
-              style={[styles.toggleText, firstAidProvided === 'yes' && styles.toggleTextActive]}
-            >
-              Yes
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.toggleButton, firstAidProvided === 'no' && styles.toggleButtonActive]}
-            onPress={() => setFirstAidProvided('no')}
-          >
-            <Text
-              style={[styles.toggleText, firstAidProvided === 'no' && styles.toggleTextActive]}
-            >
-              No
-            </Text>
-          </TouchableOpacity>
         </View>
 
-        {/* Witnesses */}
-        <Text style={[styles.label, styles.marginTop]}>Any witnesses?</Text>
-        <View style={styles.toggleContainer}>
-          <TouchableOpacity
-            style={[styles.toggleButton, anyWitnesses === 'yes' && styles.toggleButtonActive]}
-            onPress={() => {
-              setAnyWitnesses('yes');
-              if (witnesses.length === 0) addWitness();
-            }}
-          >
-            <Text style={[styles.toggleText, anyWitnesses === 'yes' && styles.toggleTextActive]}>
-              Yes
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.toggleButton, anyWitnesses === 'no' && styles.toggleButtonActive]}
-            onPress={() => {
-              setAnyWitnesses('no');
-              setWitnesses([]);
-            }}
-          >
-            <Text style={[styles.toggleText, anyWitnesses === 'no' && styles.toggleTextActive]}>
-              No
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <View style={styles.section}>
+          <View style={styles.toggleContainer}>
+            <Text style={styles.toggleLabel}>Any witnesses?</Text>
+            <View style={styles.toggleButtons}>
+              <TouchableOpacity
+                style={[
+                  styles.toggleButton,
+                  anyWitnesses === 'yes' && styles.toggleButtonActive,
+                ]}
+                onPress={() => setAnyWitnesses('yes')}
+              >
+                <Text
+                  style={[
+                    styles.toggleButtonText,
+                    anyWitnesses === 'yes' && styles.toggleButtonTextActive,
+                  ]}
+                >
+                  Yes
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.toggleButton,
+                  anyWitnesses === 'no' && styles.toggleButtonActive,
+                ]}
+                onPress={() => {
+                  setAnyWitnesses('no');
+                  setWitnesses([]);
+                }}
+              >
+                <Text
+                  style={[
+                    styles.toggleButtonText,
+                    anyWitnesses === 'no' && styles.toggleButtonTextActive,
+                  ]}
+                >
+                  No
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
 
-        {/* Witness Entries */}
-        {anyWitnesses === 'yes' && (
-          <>
-            {witnesses.map((witness, index) => (
-              <View key={witness.id} style={styles.witnessEntry}>
-                <View style={styles.witnessHeader}>
-                  <Text style={styles.witnessLabel}>Witness {index + 1}</Text>
-                  {witnesses.length > 1 && (
-                    <TouchableOpacity onPress={() => removeWitness(witness.id)}>
-                      <IconSymbol name="trash" size={18} color={colors.error} />
-                    </TouchableOpacity>
+          {anyWitnesses === 'yes' && (
+            <>
+              {witnesses.map((witness) => (
+                <View key={witness.id} style={styles.witnessCard}>
+                  <TouchableOpacity
+                    style={styles.removeButton}
+                    onPress={() => removeWitness(witness.id)}
+                  >
+                    <IconSymbol 
+                      ios_icon_name="xmark.circle.fill" 
+                      android_material_icon_name="cancel" 
+                      size={24} 
+                      color="#FF6B6B" 
+                    />
+                  </TouchableOpacity>
+
+                  <View style={styles.toggleContainer}>
+                    <Text style={styles.toggleLabel}>Was the witness an employee?</Text>
+                    <View style={styles.toggleButtons}>
+                      <TouchableOpacity
+                        style={[
+                          styles.toggleButton,
+                          witness.isEmployee === 'yes' && styles.toggleButtonActive,
+                        ]}
+                        onPress={() => updateWitness(witness.id, { isEmployee: 'yes' })}
+                      >
+                        <Text
+                          style={[
+                            styles.toggleButtonText,
+                            witness.isEmployee === 'yes' && styles.toggleButtonTextActive,
+                          ]}
+                        >
+                          Yes
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[
+                          styles.toggleButton,
+                          witness.isEmployee === 'no' && styles.toggleButtonActive,
+                        ]}
+                        onPress={() => updateWitness(witness.id, { isEmployee: 'no' })}
+                      >
+                        <Text
+                          style={[
+                            styles.toggleButtonText,
+                            witness.isEmployee === 'no' && styles.toggleButtonTextActive,
+                          ]}
+                        >
+                          No
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  {witness.isEmployee === 'yes' && (
+                    <>
+                      <Text style={[styles.label, { marginTop: 12 }]}>Select employee</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Select from list..."
+                        value={witness.employeeName}
+                        onChangeText={(text) =>
+                          updateWitness(witness.id, { employeeName: text })
+                        }
+                      />
+                    </>
+                  )}
+
+                  {witness.isEmployee === 'no' && (
+                    <>
+                      <Text style={[styles.label, { marginTop: 12 }]}>Witness name</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Enter name..."
+                        value={witness.name}
+                        onChangeText={(text) => updateWitness(witness.id, { name: text })}
+                      />
+                      <Text style={[styles.label, { marginTop: 12 }]}>Witness phone number</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Enter phone..."
+                        value={witness.phone}
+                        onChangeText={(text) => updateWitness(witness.id, { phone: text })}
+                        keyboardType="phone-pad"
+                      />
+                    </>
                   )}
                 </View>
-
-                <Text style={styles.inputLabel}>Was the witness an employee?</Text>
-                <View style={styles.toggleContainer}>
-                  <TouchableOpacity
-                    style={[
-                      styles.toggleButton,
-                      witness.isEmployee === 'yes' && styles.toggleButtonActive,
-                    ]}
-                    onPress={() => updateWitness(witness.id, { isEmployee: 'yes' })}
-                  >
-                    <Text
-                      style={[
-                        styles.toggleText,
-                        witness.isEmployee === 'yes' && styles.toggleTextActive,
-                      ]}
-                    >
-                      Yes
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.toggleButton,
-                      witness.isEmployee === 'no' && styles.toggleButtonActive,
-                    ]}
-                    onPress={() => updateWitness(witness.id, { isEmployee: 'no' })}
-                  >
-                    <Text
-                      style={[
-                        styles.toggleText,
-                        witness.isEmployee === 'no' && styles.toggleTextActive,
-                      ]}
-                    >
-                      No
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                {witness.isEmployee === 'yes' && (
-                  <>
-                    <Text style={[styles.inputLabel, styles.marginTopSmall]}>
-                      Select employee
-                    </Text>
-                    <TouchableOpacity
-                      style={styles.dropdownButton}
-                      onPress={() => {
-                        setCurrentWitnessId(witness.id);
-                        setShowEmployeeDropdown(true);
-                      }}
-                    >
-                      <Text style={styles.dropdownButtonText}>
-                        {witness.employeeName || 'Select employee'}
-                      </Text>
-                      <IconSymbol name="chevron.down" size={20} color={colors.text} />
-                    </TouchableOpacity>
-                  </>
-                )}
-
-                {witness.isEmployee === 'no' && (
-                  <>
-                    <Text style={[styles.inputLabel, styles.marginTopSmall]}>Witness name</Text>
-                    <TextInput
-                      style={styles.textInput}
-                      value={witness.name}
-                      onChangeText={(text) => updateWitness(witness.id, { name: text })}
-                      placeholder="Enter name"
-                      placeholderTextColor={colors.textSecondary}
-                    />
-
-                    <Text style={[styles.inputLabel, styles.marginTopSmall]}>
-                      Witness phone number
-                    </Text>
-                    <TextInput
-                      style={styles.textInput}
-                      value={witness.phone}
-                      onChangeText={(text) => updateWitness(witness.id, { phone: text })}
-                      placeholder="Enter phone number"
-                      placeholderTextColor={colors.textSecondary}
-                      keyboardType="phone-pad"
-                    />
-                  </>
-                )}
-              </View>
-            ))}
-
-            <TouchableOpacity style={styles.addButton} onPress={addWitness}>
-              <IconSymbol name="plus" size={20} color={colors.primary} />
-              <Text style={styles.addButtonText}>Add Another Witness</Text>
-            </TouchableOpacity>
-          </>
-        )}
+              ))}
+              <TouchableOpacity style={styles.addButton} onPress={addWitness}>
+                <Text style={styles.addButtonText}>+ Add another witness</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
       </ScrollView>
 
-      <View style={styles.footer}>
-        <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
-          <Text style={styles.nextButtonText}>Next</Text>
-        </TouchableOpacity>
-      </View>
+      <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
+        <Text style={styles.nextButtonText}>Next</Text>
+      </TouchableOpacity>
 
-      {/* Task Dropdown Modal */}
-      <Modal visible={showTaskDropdown} transparent animationType="fade">
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowTaskDropdown(false)}
-        >
+      <Modal visible={showTaskModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Select Tasks</Text>
-            {PLACEHOLDER_TASKS.map((task) => (
-              <TouchableOpacity
-                key={task}
-                style={styles.modalItem}
-                onPress={() => toggleTask(task)}
-              >
-                <Text style={styles.modalItemText}>{task}</Text>
-                {selectedTasks.includes(task) && (
-                  <IconSymbol name="checkmark" size={20} color={colors.primary} />
-                )}
-              </TouchableOpacity>
-            ))}
+            <ScrollView>
+              {PLACEHOLDER_TASKS.map((task) => (
+                <TouchableOpacity
+                  key={task}
+                  style={styles.modalOption}
+                  onPress={() => toggleTask(task)}
+                >
+                  <Text style={styles.modalOptionText}>
+                    {selectedTasks.includes(task) ? '✓ ' : ''}
+                    {task}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
             <TouchableOpacity
               style={styles.modalCloseButton}
-              onPress={() => setShowTaskDropdown(false)}
+              onPress={() => setShowTaskModal(false)}
             >
               <Text style={styles.modalCloseButtonText}>Done</Text>
             </TouchableOpacity>
           </View>
-        </TouchableOpacity>
-      </Modal>
-
-      {/* Employee Dropdown Modal */}
-      <Modal visible={showEmployeeDropdown} transparent animationType="fade">
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowEmployeeDropdown(false)}
-        >
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Select Employee</Text>
-            {PLACEHOLDER_EMPLOYEES.map((employee) => (
-              <TouchableOpacity
-                key={employee}
-                style={styles.modalItem}
-                onPress={() => {
-                  if (currentWitnessId) {
-                    updateWitness(currentWitnessId, { employeeName: employee });
-                  }
-                  setShowEmployeeDropdown(false);
-                }}
-              >
-                <Text style={styles.modalItemText}>{employee}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </TouchableOpacity>
+        </View>
       </Modal>
     </View>
   );
-};
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    backgroundColor: colors.background,
-  },
-  backButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  placeholder: {
-    width: 40,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 16,
-    paddingBottom: 100,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 12,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  marginTop: {
-    marginTop: 24,
-  },
-  marginTopSmall: {
-    marginTop: 12,
-  },
-  timeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
-  },
-  timeButtonText: {
-    fontSize: 16,
-    color: colors.text,
-  },
-  textInput: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
-    fontSize: 16,
-    color: colors.text,
-  },
-  dropdownButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
-  },
-  dropdownButtonText: {
-    fontSize: 16,
-    color: colors.text,
-  },
-  selectedContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 12,
-  },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    backgroundColor: colors.primaryLight,
-  },
-  chipText: {
-    fontSize: 14,
-    color: colors.primary,
-  },
-  toggleContainer: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  toggleButton: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-  },
-  toggleButtonActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  toggleText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: colors.text,
-  },
-  toggleTextActive: {
-    color: '#fff',
-  },
-  witnessEntry: {
-    marginTop: 16,
-    padding: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.cardBackground,
-  },
-  witnessHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  witnessLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    marginTop: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: colors.primary,
-  },
-  addButtonText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: colors.primary,
-  },
-  footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 16,
-    backgroundColor: colors.background,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  nextButton: {
-    backgroundColor: colors.primary,
-    paddingVertical: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  nextButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    width: '80%',
-    backgroundColor: colors.background,
-    borderRadius: 12,
-    padding: 20,
-    maxHeight: '70%',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 16,
-  },
-  modalItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  modalItemText: {
-    fontSize: 16,
-    color: colors.text,
-  },
-  modalCloseButton: {
-    marginTop: 16,
-    paddingVertical: 12,
-    backgroundColor: colors.primary,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  modalCloseButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
-  },
-});
-
-export default IncidentReportPage3;
+}
