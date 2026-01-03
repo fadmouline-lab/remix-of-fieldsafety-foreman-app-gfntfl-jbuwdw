@@ -39,6 +39,12 @@ interface HaulingRequest {
   status: 'pending' | 'sent' | 'failed';
 }
 
+interface InjuryReport {
+  id: string;
+  created_at: string;
+  status: string;
+}
+
 const beforeJobStartForms: FormCard[] = [
   { id: '1', titleKey: 'forms.dailyPreTask' },
 ];
@@ -71,6 +77,8 @@ export default function HomeScreen() {
   const [loadingCompletedForms, setLoadingCompletedForms] = useState(false);
   const [haulingRequests, setHaulingRequests] = useState<HaulingRequest[]>([]);
   const [loadingHaulingRequests, setLoadingHaulingRequests] = useState(false);
+  const [injuryReports, setInjuryReports] = useState<InjuryReport[]>([]);
+  const [loadingInjuryReports, setLoadingInjuryReports] = useState(false);
 
   // Redirect to select project if no project selected
   useEffect(() => {
@@ -227,14 +235,47 @@ export default function HomeScreen() {
     }
   }, [currentProject]);
 
+  const loadInjuryReports = useCallback(async () => {
+    if (!currentEmployee || !currentProject) {
+      console.log('Cannot load injury reports: missing employee or project');
+      return;
+    }
+
+    console.log('Loading injury reports...');
+    setLoadingInjuryReports(true);
+
+    try {
+      const { data, error } = await supabase
+        .from('injury_reports')
+        .select('id, created_at, status')
+        .eq('org_id', currentEmployee.org_id)
+        .eq('project_id', currentProject.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching injury reports:', error);
+        setInjuryReports([]);
+      } else {
+        console.log('Injury reports loaded:', data?.length || 0);
+        setInjuryReports(data || []);
+      }
+    } catch (error) {
+      console.error('Exception loading injury reports:', error);
+      setInjuryReports([]);
+    } finally {
+      setLoadingInjuryReports(false);
+    }
+  }, [currentEmployee, currentProject]);
+
   // Load completed forms when screen is focused
   useFocusEffect(
     useCallback(() => {
       if (currentEmployee && currentProject) {
         loadCompletedForms();
         loadHaulingRequests();
+        loadInjuryReports();
       }
-    }, [currentEmployee, currentProject, loadCompletedForms, loadHaulingRequests])
+    }, [currentEmployee, currentProject, loadCompletedForms, loadHaulingRequests, loadInjuryReports])
   );
 
   const handleFormPress = (formTitle: string, formId: string, tabType: TabType) => {
@@ -347,33 +388,80 @@ export default function HomeScreen() {
     });
   };
 
-  const getStatusLabel = (status: 'pending' | 'sent' | 'failed') => {
-    switch (status) {
-      case 'pending':
-        return 'Pending';
-      case 'sent':
-        return 'Sent';
-      case 'failed':
-        return 'Failed';
-      default:
-        return 'Unknown';
+  const getStatusLabel = (status: string) => {
+    // Handle hauling request statuses
+    if (status === 'pending') return 'Pending';
+    if (status === 'sent') return 'Sent';
+    if (status === 'failed') return 'Failed';
+    
+    // Handle injury report statuses - capitalize first letter
+    if (status) {
+      return status.charAt(0).toUpperCase() + status.slice(1);
     }
+    
+    return 'Unknown';
   };
 
-  const getStatusColor = (status: 'pending' | 'sent' | 'failed') => {
-    switch (status) {
-      case 'pending':
-        return '#FFA500';
-      case 'sent':
-        return '#4CAF50';
-      case 'failed':
-        return '#F44336';
-      default:
-        return colors.textSecondary;
+  const getStatusColor = (status: string) => {
+    // Handle hauling request statuses
+    if (status === 'pending') return '#FFA500';
+    if (status === 'sent') return '#4CAF50';
+    if (status === 'failed') return '#F44336';
+    
+    // Handle injury report statuses
+    if (status === 'submitted' || status === 'reviewed' || status === 'closed') {
+      return '#4CAF50';
     }
+    if (status === 'draft' || status === 'pending') {
+      return '#FFA500';
+    }
+    
+    return colors.textSecondary;
   };
 
   const projectName = currentProject?.name || 'No Project Selected';
+
+  // Combine and sort hauling requests and injury reports for MORE FORMS tab
+  const getMoreFormsCompletedItems = () => {
+    const items: Array<{
+      id: string;
+      type: 'hauling' | 'injury';
+      submitted_time: string;
+      status: string;
+    }> = [];
+
+    // Add hauling requests
+    haulingRequests.forEach((request) => {
+      items.push({
+        id: request.id,
+        type: 'hauling',
+        submitted_time: request.submitted_time,
+        status: request.status,
+      });
+    });
+
+    // Add injury reports
+    injuryReports.forEach((report) => {
+      items.push({
+        id: report.id,
+        type: 'injury',
+        submitted_time: report.created_at,
+        status: report.status,
+      });
+    });
+
+    // Sort by most recent submission date
+    items.sort((a, b) => {
+      const aTime = new Date(a.submitted_time).getTime();
+      const bTime = new Date(b.submitted_time).getTime();
+      return bTime - aTime;
+    });
+
+    return items;
+  };
+
+  const isLoadingMoreForms = loadingHaulingRequests || loadingInjuryReports;
+  const moreFormsCompletedItems = getMoreFormsCompletedItems();
 
   return (
     <View style={styles.container}>
@@ -602,12 +690,12 @@ export default function HomeScreen() {
               {t('home.completedForms')}
             </Text>
             
-            {loadingHaulingRequests ? (
+            {isLoadingMoreForms ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="small" color={colors.primary} />
                 <Text style={styles.loadingText}>Loading completed forms...</Text>
               </View>
-            ) : haulingRequests.length === 0 ? (
+            ) : moreFormsCompletedItems.length === 0 ? (
               <View style={styles.emptyCompletedContainer}>
                 <Text style={styles.emptyCompletedText}>
                   No completed forms in this section yet.
@@ -615,24 +703,24 @@ export default function HomeScreen() {
               </View>
             ) : (
               <React.Fragment>
-                {haulingRequests.map((request, index) => (
-                  <View key={`hauling-${index}`} style={styles.completedCard}>
+                {moreFormsCompletedItems.map((item, index) => (
+                  <View key={`${item.type}-${index}`} style={styles.completedCard}>
                     <View style={styles.completedCardContent}>
                       <Text style={styles.completedFormTitle}>
-                        HAULING DUMPSTERS
+                        {item.type === 'hauling' ? 'HAULING DUMPSTERS' : 'REPORT AN INJURY'}
                       </Text>
                       <Text style={styles.submittedDate}>
-                        Submitted on: {formatSubmittedDate(request.submitted_time)}
+                        Submitted on: {formatSubmittedDate(item.submitted_time)}
                       </Text>
                     </View>
                     <View style={styles.statusIndicator}>
                       <Text 
                         style={[
                           styles.statusText,
-                          { color: getStatusColor(request.status) }
+                          { color: getStatusColor(item.status) }
                         ]}
                       >
-                        {getStatusLabel(request.status)}
+                        {getStatusLabel(item.status)}
                       </Text>
                     </View>
                   </View>
