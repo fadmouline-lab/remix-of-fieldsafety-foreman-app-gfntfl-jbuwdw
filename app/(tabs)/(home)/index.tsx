@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import { useLanguage } from '@/contexts/LanguageContext';
 import {
   View,
   Text,
@@ -11,13 +11,13 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { colors, commonStyles } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
-import { useLanguage } from '@/contexts/LanguageContext';
+import { colors, commonStyles } from '@/styles/commonStyles';
 import { useAuth } from '@/contexts/AuthContext';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 
-type TabType = 'TODO' | 'MORE_FORMS';
+type TabType = 'todo' | 'moreForms';
 
 interface FormCard {
   id: string;
@@ -39,173 +39,133 @@ interface HaulingRequest {
   status: 'pending' | 'sent' | 'failed';
 }
 
-const beforeJobStartForms: FormCard[] = [
-  { id: '1', titleKey: 'forms.dailyPreTask' },
-];
-
-const afterJobCompletedForms: FormCard[] = [
-  { id: '2', titleKey: 'forms.timeCards' },
-  { id: '3', titleKey: 'forms.dailyActivityLog' },
-];
-
-const manageJobSiteForms: FormCard[] = [
-  { id: 'extra-work', titleKey: 'forms.extraWorkTickets' },
-  { id: 'hauling', titleKey: 'forms.haulingDumpsters' },
-];
-
-const safetyForms: FormCard[] = [
-  { id: 'equipment-inspection', titleKey: 'forms.equipmentInspection' },
-  { id: 'observation', titleKey: 'forms.observation' },
-  { id: 'near-miss', titleKey: 'forms.nearMiss' },
-  { id: 'incident', titleKey: 'forms.incident' },
-];
+interface InjuryReport {
+  id: string;
+  reported_at: string | null;
+  created_at: string;
+  updated_at: string | null;
+  status: string;
+}
 
 export default function HomeScreen() {
+  const { currentEmployee, currentProject, session } = useAuth();
   const router = useRouter();
-  const { language, setLanguage, t } = useLanguage();
-  const { currentProject, currentEmployee, signOut, session } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabType>('TODO');
-  const [settingsVisible, setSettingsVisible] = useState(false);
-  const [preTaskModalVisible, setPreTaskModalVisible] = useState(false);
-  const [completedForms, setCompletedForms] = useState<CompletedForm[]>([]);
-  const [loadingCompletedForms, setLoadingCompletedForms] = useState(false);
-  const [haulingRequests, setHaulingRequests] = useState<HaulingRequest[]>([]);
-  const [loadingHaulingRequests, setLoadingHaulingRequests] = useState(false);
+  
+  useFocusEffect(
+    useCallback(() => {
+      if (!session) {
+        router.replace('/login');
+      }
+    }, [session])
+  );
 
-  // Redirect to select project if no project selected
+  const [activeTab, setActiveTab] = useState<TabType>('todo');
+  const [completedForms, setCompletedForms] = useState<CompletedForm[]>([]);
+  const [haulingRequests, setHaulingRequests] = useState<HaulingRequest[]>([]);
+  const [injuryReports, setInjuryReports] = useState<InjuryReport[]>([]);
+  const [loading, setLoading] = useState(false);
+
   useEffect(() => {
-    if (session && currentEmployee && !currentProject) {
-      console.log('No project selected, redirecting to select project');
+    if (!currentProject || !session || !currentEmployee) {
       router.replace('/select-project');
     }
-  }, [currentProject, session, currentEmployee, router]);
+  }, [currentProject, session, currentEmployee]);
 
-  // Redirect to login if not authenticated
-  useEffect(() => {
-    if (!session) {
-      console.log('No session, redirecting to login');
-      router.replace('/login');
-    }
-  }, [session, router]);
+  const { t } = useLanguage();
 
-  const loadCompletedForms = useCallback(async () => {
-    if (!currentEmployee || !currentProject) {
-      console.log('Cannot load completed forms: missing employee or project');
+  // Fetch completed forms, hauling requests, and injury reports
+  useFocusEffect(
+    useCallback(() => {
+      if (currentProject?.id && currentEmployee?.id) {
+        fetchCompletedForms();
+        fetchHaulingRequests();
+        fetchInjuryReports();
+      }
+    }, [currentProject?.id, currentEmployee?.id])
+  );
+
+  const fetchCompletedForms = async () => {
+    if (!currentProject?.id || !currentEmployee?.id) {
+      console.log('Missing project or employee ID');
       return;
     }
 
-    console.log('Loading completed forms...');
-    setLoadingCompletedForms(true);
-
     try {
-      // Load PTP forms
+      console.log('Fetching completed forms...');
+      
+      // Fetch PTP forms
       const { data: ptpData, error: ptpError } = await supabase
         .from('submitted_ptp')
         .select('id, submitted_time, updated_at, revision')
-        .eq('org_id', currentEmployee.org_id)
-        .eq('project_id', currentProject.id);
+        .eq('project_id', currentProject.id)
+        .order('submitted_time', { ascending: false });
 
       if (ptpError) {
-        console.error('Error fetching completed PTP forms:', ptpError);
+        console.error('Error fetching PTP forms:', ptpError);
       }
 
-      // Load Time Card forms
+      // Fetch time cards
       const { data: timeCardData, error: timeCardError } = await supabase
-        .from('submitted_time_cards')
+        .from('time_cards')
         .select('id, submitted_time, updated_at, revision')
-        .eq('org_id', currentEmployee.org_id)
-        .eq('project_id', currentProject.id);
+        .eq('project_id', currentProject.id)
+        .order('submitted_time', { ascending: false });
 
       if (timeCardError) {
-        console.error('Error fetching completed Time Card forms:', timeCardError);
+        console.error('Error fetching time cards:', timeCardError);
       }
 
-      // Load Daily Activity Log forms
+      // Fetch activity logs
       const { data: activityLogData, error: activityLogError } = await supabase
         .from('daily_activity_logs')
         .select('id, submitted_time, updated_at, revision')
-        .eq('org_id', currentEmployee.org_id)
-        .eq('project_id', currentProject.id);
+        .eq('project_id', currentProject.id)
+        .order('submitted_time', { ascending: false });
 
       if (activityLogError) {
-        console.error('Error fetching completed Activity Log forms:', activityLogError);
+        console.error('Error fetching activity logs:', activityLogError);
       }
 
-      // Combine and transform forms
-      const allForms: CompletedForm[] = [];
+      // Combine and format all forms
+      const allForms: CompletedForm[] = [
+        ...(ptpData || []).map(form => ({
+          ...form,
+          type: 'ptp' as const,
+          display_time: formatSubmittedDate(form.submitted_time),
+        })),
+        ...(timeCardData || []).map(form => ({
+          ...form,
+          type: 'timecard' as const,
+          display_time: formatSubmittedDate(form.submitted_time),
+        })),
+        ...(activityLogData || []).map(form => ({
+          ...form,
+          type: 'activitylog' as const,
+          display_time: formatSubmittedDate(form.submitted_time),
+        })),
+      ];
 
-      // Add PTP forms
-      if (ptpData) {
-        ptpData.forEach((form) => {
-          const displayTime = form.updated_at || form.submitted_time;
-          allForms.push({
-            id: form.id,
-            type: 'ptp',
-            submitted_time: form.submitted_time,
-            updated_at: form.updated_at,
-            revision: form.revision,
-            display_time: displayTime,
-          });
-        });
-      }
+      // Sort by submitted_time descending
+      allForms.sort((a, b) => 
+        new Date(b.submitted_time).getTime() - new Date(a.submitted_time).getTime()
+      );
 
-      // Add Time Card forms
-      if (timeCardData) {
-        timeCardData.forEach((form) => {
-          const displayTime = form.updated_at || form.submitted_time;
-          allForms.push({
-            id: form.id,
-            type: 'timecard',
-            submitted_time: form.submitted_time,
-            updated_at: form.updated_at,
-            revision: form.revision,
-            display_time: displayTime,
-          });
-        });
-      }
-
-      // Add Activity Log forms
-      if (activityLogData) {
-        activityLogData.forEach((form) => {
-          const displayTime = form.updated_at || form.submitted_time;
-          allForms.push({
-            id: form.id,
-            type: 'activitylog',
-            submitted_time: form.submitted_time,
-            updated_at: form.updated_at,
-            revision: form.revision,
-            display_time: displayTime,
-          });
-        });
-      }
-
-      // Sort by most recent activity
-      allForms.sort((a, b) => {
-        const aTime = new Date(a.display_time).getTime();
-        const bTime = new Date(b.display_time).getTime();
-        return bTime - aTime;
-      });
-
-      console.log('Completed forms loaded and sorted:', allForms.length);
+      console.log('Completed forms loaded:', allForms.length);
       setCompletedForms(allForms);
     } catch (error) {
-      console.error('Exception loading completed forms:', error);
-      setCompletedForms([]);
-    } finally {
-      setLoadingCompletedForms(false);
+      console.error('Error fetching completed forms:', error);
     }
-  }, [currentEmployee, currentProject]);
+  };
 
-  const loadHaulingRequests = useCallback(async () => {
-    if (!currentProject) {
-      console.log('Cannot load hauling requests: missing project');
+  const fetchHaulingRequests = async () => {
+    if (!currentProject?.id) {
+      console.log('Missing project ID for hauling requests');
       return;
     }
 
-    console.log('Loading hauling requests...');
-    setLoadingHaulingRequests(true);
-
     try {
+      console.log('Fetching hauling requests...');
+      
       const { data, error } = await supabase
         .from('hauling_requests')
         .select('id, submitted_time, status')
@@ -214,49 +174,115 @@ export default function HomeScreen() {
 
       if (error) {
         console.error('Error fetching hauling requests:', error);
-        setHaulingRequests([]);
+        return;
+      }
+
+      console.log('Hauling requests loaded:', data?.length || 0);
+      setHaulingRequests(data || []);
+    } catch (error) {
+      console.error('Error fetching hauling requests:', error);
+    }
+  };
+
+  const fetchInjuryReports = async () => {
+    if (!currentProject?.id) {
+      console.log('Missing project ID for injury reports');
+      return;
+    }
+    
+    try {
+      console.log('Fetching injury reports...');
+      
+      const { data, error } = await supabase
+        .from('injury_reports')
+        .select('id, reported_at, created_at, updated_at, status')
+        .eq('project_id', currentProject.id)
+        .order('updated_at', { ascending: false, nullsFirst: false })
+        .order('reported_at', { ascending: false, nullsFirst: false })
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching injury reports:', error);
+        return;
+      }
+
+      console.log('Injury reports loaded:', data?.length || 0);
+      setInjuryReports(data || []);
+    } catch (error) {
+      console.error('Error fetching injury reports:', error);
+    }
+  };
+
+  // Update the safetyForms array to change INCIDENT to REPORT AN INJURY
+  const manageJobSiteForms: FormCard[] = [
+    { id: 'extra-work-tickets', titleKey: 'EXTRA WORK TICKETS' },
+    { id: 'hauling-dumpsters', titleKey: 'HAULING DUMPSTERS' },
+  ];
+
+  const safetyForms: FormCard[] = [
+    { id: 'equipment-inspection', titleKey: 'EQUIPMENT INSPECTION' },
+    { id: 'observation', titleKey: 'OBSERVATION' },
+    { id: 'near-miss', titleKey: 'NEAR MISS' },
+    { id: 'incident', titleKey: 'REPORT AN INJURY' }, // Changed from 'INCIDENT'
+  ];
+
+  const formatSubmittedDate = (dateString: string): string => {
+    try {
+      const date = new Date(dateString);
+      const now = new Date();
+      const diffTime = Math.abs(now.getTime() - date.getTime());
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays === 0) {
+        return 'Today';
+      } else if (diffDays === 1) {
+        return 'Yesterday';
+      } else if (diffDays < 7) {
+        return `${diffDays} days ago`;
       } else {
-        console.log('Hauling requests loaded:', data?.length || 0);
-        setHaulingRequests(data || []);
+        const month = date.toLocaleString('default', { month: 'short' });
+        const day = date.getDate();
+        const year = date.getFullYear();
+        return `${month} ${day}, ${year}`;
       }
     } catch (error) {
-      console.error('Exception loading hauling requests:', error);
-      setHaulingRequests([]);
-    } finally {
-      setLoadingHaulingRequests(false);
+      console.error('Error formatting date:', error);
+      return dateString;
     }
-  }, [currentProject]);
+  };
 
-  // Load completed forms when screen is focused
-  useFocusEffect(
-    useCallback(() => {
-      if (currentEmployee && currentProject) {
-        loadCompletedForms();
-        loadHaulingRequests();
-      }
-    }, [currentEmployee, currentProject, loadCompletedForms, loadHaulingRequests])
-  );
+  const getStatusLabel = (status: 'pending' | 'sent' | 'failed' | string): string => {
+    if (status === 'pending') return 'Pending';
+    if (status === 'sent') return 'Sent';
+    if (status === 'failed') return 'Failed';
+    // For injury reports, capitalize first letter
+    return status.charAt(0).toUpperCase() + status.slice(1);
+  };
+
+  const getStatusColor = (status: 'pending' | 'sent' | 'failed' | string): string => {
+    if (status === 'pending') return '#FF9500';
+    if (status === 'sent') return '#34C759';
+    if (status === 'failed') return '#FF3B30';
+    // For injury reports with "Submitted" status
+    if (status === 'submitted') return '#34C759';
+    return '#007AFF'; // Default blue for other statuses
+  };
+
+  const formatInjuryReportDate = (report: InjuryReport): string => {
+    const dateToUse = report.reported_at || report.created_at;
+    return formatSubmittedDate(dateToUse);
+  };
 
   const handleFormPress = (formTitle: string, formId: string, tabType: TabType) => {
-    console.log('Form pressed:', formTitle, 'ID:', formId);
+    console.log('Form pressed:', formTitle, formId, tabType);
     
-    if (tabType === 'TODO') {
-      if (formId === '1') {
-        setPreTaskModalVisible(true);
-      } else if (formId === '2') {
-        router.push('/time-cards-1');
-      } else if (formId === '3') {
-        router.push('/daily-activity-log-1');
-      }
-    } else if (tabType === 'MORE_FORMS') {
-      // Manage Job-Site forms
-      if (formId === 'extra-work') {
+    if (tabType === 'moreForms') {
+      // Handle More Forms tab navigation
+      if (formId === 'extra-work-tickets') {
         router.push('/extra-work-ticket-1');
-      } else if (formId === 'hauling') {
+      } else if (formId === 'hauling-dumpsters') {
         router.push('/hauling-dumpsters-0');
-      }
-      // Safety forms
-      else if (formId === 'equipment-inspection') {
+      } else if (formId === 'equipment-inspection') {
         router.push('/equipment-inspection-1');
       } else if (formId === 'observation') {
         router.push('/observation-report-1');
@@ -269,111 +295,58 @@ export default function HomeScreen() {
   };
 
   const handleEditPtpPress = (formId: string) => {
-    console.log('Edit PTP pressed for form:', formId);
+    console.log('Edit PTP pressed:', formId);
     router.push({
       pathname: '/pre-task-select-tasks',
-      params: {
-        mode: 'EDIT',
-        editingId: formId,
-      },
+      params: { mode: 'edit', editingId: formId },
     });
   };
 
   const handleEditTimeCardPress = (formId: string) => {
-    console.log('Edit Time Card pressed for form:', formId);
+    console.log('Edit time card pressed:', formId);
     router.push({
       pathname: '/time-cards-1',
-      params: {
-        mode: 'EDIT',
-        editingId: formId,
-      },
+      params: { mode: 'edit', editingId: formId },
     });
   };
 
   const handleEditActivityLogPress = (formId: string) => {
-    console.log('Edit Activity Log pressed for form:', formId);
+    console.log('Edit activity log pressed:', formId);
     router.push({
       pathname: '/daily-activity-log-1',
-      params: {
-        mode: 'EDIT',
-        editingId: formId,
-      },
+      params: { mode: 'edit', editingId: formId },
     });
   };
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
     console.log('Logging out...');
-    setSettingsVisible(false);
-    await signOut();
     router.replace('/login');
   };
 
   const handleNavigateToProfile = () => {
-    setSettingsVisible(false);
     router.push('/profile');
   };
 
   const handleNavigateToSelectProject = () => {
-    setSettingsVisible(false);
     router.push('/select-project');
   };
 
   const handleDuplicateYesterday = () => {
-    setPreTaskModalVisible(false);
     router.push({
       pathname: '/pre-task-select-tasks',
-      params: { mode: 'DUPLICATE' },
+      params: { mode: 'duplicate' },
     });
   };
 
   const handleStartNew = () => {
-    setPreTaskModalVisible(false);
-    router.push({
-      pathname: '/pre-task-select-tasks',
-      params: { mode: 'CREATE' },
-    });
+    router.push('/pre-task-select-tasks');
   };
 
   const handleOpenProjectInfo = () => {
-    router.push('/(tabs)/(home)/project-info-modal');
+    router.push('/project-info-modal');
   };
 
-  const formatSubmittedDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  };
-
-  const getStatusLabel = (status: 'pending' | 'sent' | 'failed') => {
-    switch (status) {
-      case 'pending':
-        return 'Pending';
-      case 'sent':
-        return 'Sent';
-      case 'failed':
-        return 'Failed';
-      default:
-        return 'Unknown';
-    }
-  };
-
-  const getStatusColor = (status: 'pending' | 'sent' | 'failed') => {
-    switch (status) {
-      case 'pending':
-        return '#FFA500';
-      case 'sent':
-        return '#4CAF50';
-      case 'failed':
-        return '#F44336';
-      default:
-        return colors.textSecondary;
-    }
-  };
-
-  const projectName = currentProject?.name || 'No Project Selected';
+  const projectName = currentProject?.name || 'Project';
 
   return (
     <View style={styles.container}>
@@ -398,7 +371,7 @@ export default function HomeScreen() {
           </View>
           <TouchableOpacity
             style={styles.settingsButton}
-            onPress={() => setSettingsVisible(true)}
+            onPress={handleNavigateToProfile}
           >
             <IconSymbol
               ios_icon_name="gearshape.fill"
@@ -412,29 +385,29 @@ export default function HomeScreen() {
 
       <View style={styles.tabContainer}>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'TODO' && styles.tabActive]}
-          onPress={() => setActiveTab('TODO')}
+          style={[styles.tab, activeTab === 'todo' && styles.tabActive]}
+          onPress={() => setActiveTab('todo')}
         >
           <Text
             style={[
               styles.tabText,
-              activeTab === 'TODO' && styles.tabTextActive,
+              activeTab === 'todo' && styles.tabTextActive,
             ]}
           >
-            {t('home.todo')}
+            TO-DO
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'MORE_FORMS' && styles.tabActive]}
-          onPress={() => setActiveTab('MORE_FORMS')}
+          style={[styles.tab, activeTab === 'moreForms' && styles.tabActive]}
+          onPress={() => setActiveTab('moreForms')}
         >
           <Text
             style={[
               styles.tabText,
-              activeTab === 'MORE_FORMS' && styles.tabTextActive,
+              activeTab === 'moreForms' && styles.tabTextActive,
             ]}
           >
-            {t('home.moreForms')}
+            MORE FORMS
           </Text>
         </TouchableOpacity>
       </View>
@@ -444,371 +417,195 @@ export default function HomeScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {activeTab === 'TODO' ? (
+        {activeTab === 'todo' ? (
           <View>
-            <Text style={styles.sectionTitle}>{t('home.beforeJobStart')}</Text>
-            {beforeJobStartForms.map((form, index) => (
-              <TouchableOpacity
-                key={index}
-                style={styles.formCard}
-                onPress={() => handleFormPress(t(form.titleKey), form.id, 'TODO')}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.formTitle}>{t(form.titleKey)}</Text>
-                <View style={styles.addIconContainer}>
-                  <IconSymbol
-                    ios_icon_name="plus.circle.fill"
-                    android_material_icon_name="add-circle"
-                    size={32}
-                    color={colors.primary}
-                  />
-                </View>
-              </TouchableOpacity>
-            ))}
-
-            <Text style={[styles.sectionTitle, styles.sectionTitleMargin]}>
-              {t('home.afterJobCompleted')}
-            </Text>
-            {afterJobCompletedForms.map((form, index) => (
-              <TouchableOpacity
-                key={index}
-                style={styles.formCard}
-                onPress={() => handleFormPress(t(form.titleKey), form.id, 'TODO')}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.formTitle}>{t(form.titleKey)}</Text>
-                <View style={styles.addIconContainer}>
-                  <IconSymbol
-                    ios_icon_name="plus.circle.fill"
-                    android_material_icon_name="add-circle"
-                    size={32}
-                    color={colors.primary}
-                  />
-                </View>
-              </TouchableOpacity>
-            ))}
-
-            <Text style={[styles.sectionTitle, styles.sectionTitleMargin]}>
-              {t('home.completedForms')}
-            </Text>
+            <Text style={styles.sectionTitle}>TODAY</Text>
             
-            {loadingCompletedForms ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color={colors.primary} />
-                <Text style={styles.loadingText}>Loading completed forms...</Text>
-              </View>
-            ) : completedForms.length === 0 ? (
-              <View style={styles.emptyCompletedContainer}>
-                <Text style={styles.emptyCompletedText}>
-                  No completed forms yet.
-                </Text>
-              </View>
-            ) : (
-              <React.Fragment>
-                {completedForms.map((form, index) => {
-                  let formTitle = '';
-                  if (form.type === 'ptp') {
-                    formTitle = 'Daily Pre-Task Checklist';
-                  } else if (form.type === 'timecard') {
-                    formTitle = 'Time Cards';
-                  } else if (form.type === 'activitylog') {
-                    formTitle = 'Daily Activity Log';
-                  }
-
-                  return (
-                    <View key={`${form.type}-${index}`} style={styles.completedCard}>
-                      <View style={styles.completedCardContent}>
-                        <View style={styles.completedTitleRow}>
-                          <Text style={styles.completedFormTitle}>
-                            {formTitle}
-                          </Text>
-                          {form.revision > 1 && (
-                            <View style={styles.editedBadge}>
-                              <Text style={styles.editedBadgeText}>Edited</Text>
-                            </View>
-                          )}
-                        </View>
-                        <Text style={styles.submittedDate}>
-                          {form.updated_at
-                            ? `Updated on: ${formatSubmittedDate(form.updated_at)}`
-                            : `${t('home.submittedOn')} ${formatSubmittedDate(form.submitted_time)}`}
-                        </Text>
-                      </View>
-                      <TouchableOpacity
-                        style={styles.editButton}
-                        onPress={() => {
-                          if (form.type === 'ptp') {
-                            handleEditPtpPress(form.id);
-                          } else if (form.type === 'timecard') {
-                            handleEditTimeCardPress(form.id);
-                          } else if (form.type === 'activitylog') {
-                            handleEditActivityLogPress(form.id);
-                          }
-                        }}
-                      >
-                        <Text style={styles.editButtonText}>{t('home.edit')}</Text>
-                      </TouchableOpacity>
-                    </View>
-                  );
-                })}
-              </React.Fragment>
-            )}
-          </View>
-        ) : (
-          <View>
-            <Text style={styles.sectionTitle}>{t('home.manageJobSite')}</Text>
-            {manageJobSiteForms.map((form, index) => (
-              <TouchableOpacity
-                key={index}
-                style={styles.formCard}
-                onPress={() => handleFormPress(t(form.titleKey), form.id, 'MORE_FORMS')}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.formTitle}>{t(form.titleKey)}</Text>
-                <View style={styles.addIconContainer}>
-                  <IconSymbol
-                    ios_icon_name="plus.circle.fill"
-                    android_material_icon_name="add-circle"
-                    size={32}
-                    color={colors.primary}
-                  />
-                </View>
-              </TouchableOpacity>
-            ))}
-
-            <Text style={[styles.sectionTitle, styles.sectionTitleMargin]}>
-              {t('home.safety')}
-            </Text>
-            {safetyForms.map((form, index) => (
-              <TouchableOpacity
-                key={index}
-                style={styles.formCard}
-                onPress={() => handleFormPress(t(form.titleKey), form.id, 'MORE_FORMS')}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.formTitle}>{t(form.titleKey)}</Text>
-                <View style={styles.addIconContainer}>
-                  <IconSymbol
-                    ios_icon_name="plus.circle.fill"
-                    android_material_icon_name="add-circle"
-                    size={32}
-                    color={colors.primary}
-                  />
-                </View>
-              </TouchableOpacity>
-            ))}
-
-            <Text style={[styles.sectionTitle, styles.sectionTitleMargin]}>
-              {t('home.completedForms')}
-            </Text>
-            
-            {loadingHaulingRequests ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color={colors.primary} />
-                <Text style={styles.loadingText}>Loading completed forms...</Text>
-              </View>
-            ) : haulingRequests.length === 0 ? (
-              <View style={styles.emptyCompletedContainer}>
-                <Text style={styles.emptyCompletedText}>
-                  No completed forms in this section yet.
-                </Text>
-              </View>
-            ) : (
-              <React.Fragment>
-                {haulingRequests.map((request, index) => (
-                  <View key={`hauling-${index}`} style={styles.completedCard}>
-                    <View style={styles.completedCardContent}>
-                      <Text style={styles.completedFormTitle}>
-                        HAULING DUMPSTERS
-                      </Text>
-                      <Text style={styles.submittedDate}>
-                        Submitted on: {formatSubmittedDate(request.submitted_time)}
-                      </Text>
-                    </View>
-                    <View style={styles.statusIndicator}>
-                      <Text 
-                        style={[
-                          styles.statusText,
-                          { color: getStatusColor(request.status) }
-                        ]}
-                      >
-                        {getStatusLabel(request.status)}
-                      </Text>
-                    </View>
-                  </View>
-                ))}
-              </React.Fragment>
-            )}
-          </View>
-        )}
-      </ScrollView>
-
-      {/* Settings Modal */}
-      <Modal
-        visible={settingsVisible}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setSettingsVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setSettingsVisible(false)}
-        >
-          <View style={styles.settingsMenu}>
-            <View style={styles.settingsHeader}>
-              <Text style={styles.settingsTitle}>{t('settings.title')}</Text>
-              <TouchableOpacity
-                onPress={() => setSettingsVisible(false)}
-                style={styles.closeButton}
-              >
-                <IconSymbol
-                  ios_icon_name="xmark"
-                  android_material_icon_name="close"
-                  size={24}
-                  color={colors.text}
-                />
-              </TouchableOpacity>
-            </View>
-
             <TouchableOpacity
-              style={styles.menuItem}
-              onPress={handleNavigateToSelectProject}
+              style={styles.formCard}
+              onPress={handleStartNew}
+              activeOpacity={0.7}
             >
-              <IconSymbol
-                ios_icon_name="folder.fill"
-                android_material_icon_name="folder"
-                size={20}
-                color={colors.text}
-              />
-              <Text style={styles.menuItemText}>{t('settings.selectProject')}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={handleNavigateToProfile}
-            >
-              <IconSymbol
-                ios_icon_name="person.fill"
-                android_material_icon_name="person"
-                size={20}
-                color={colors.text}
-              />
-              <Text style={styles.menuItemText}>{t('settings.profile')}</Text>
-            </TouchableOpacity>
-
-            <View style={styles.languageSection}>
-              <Text style={styles.languageLabel}>{t('settings.language')}</Text>
-              <View style={styles.languageToggle}>
-                <TouchableOpacity
-                  style={[
-                    styles.languageButton,
-                    language === 'en' && styles.languageButtonActive,
-                  ]}
-                  onPress={() => setLanguage('en')}
-                >
-                  <Text
-                    style={[
-                      styles.languageButtonText,
-                      language === 'en' && styles.languageButtonTextActive,
-                    ]}
-                  >
-                    English
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.languageButton,
-                    language === 'es' && styles.languageButtonActive,
-                  ]}
-                  onPress={() => setLanguage('es')}
-                >
-                  <Text
-                    style={[
-                      styles.languageButtonText,
-                      language === 'es' && styles.languageButtonTextActive,
-                    ]}
-                  >
-                    Español
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <View style={styles.divider} />
-
-            <TouchableOpacity
-              style={styles.logoutButton}
-              onPress={handleLogout}
-            >
-              <IconSymbol
-                ios_icon_name="arrow.right.square.fill"
-                android_material_icon_name="logout"
-                size={20}
-                color={colors.secondary}
-              />
-              <Text style={styles.logoutText}>{t('settings.logout')}</Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
-
-      {/* Pre-Task Modal */}
-      <Modal
-        visible={preTaskModalVisible}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setPreTaskModalVisible(false)}
-      >
-        <View style={styles.preTaskOverlay}>
-          <View style={styles.preTaskModalContainer}>
-            <View style={styles.preTaskHeader}>
-              <Text style={styles.preTaskTitle}>Pre-Task Card</Text>
-              <TouchableOpacity
-                onPress={() => setPreTaskModalVisible(false)}
-                style={styles.closeButton}
-              >
-                <IconSymbol
-                  ios_icon_name="xmark"
-                  android_material_icon_name="close"
-                  size={24}
-                  color={colors.text}
-                />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.preTaskButtonContainer}>
-              <TouchableOpacity
-                style={styles.preTaskOptionButton}
-                onPress={handleDuplicateYesterday}
-                activeOpacity={0.7}
-              >
-                <IconSymbol
-                  ios_icon_name="doc.on.doc.fill"
-                  android_material_icon_name="content-copy"
-                  size={32}
-                  color={colors.primary}
-                />
-                <Text style={styles.preTaskButtonText}>Duplicate Yesterday</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.preTaskOptionButton}
-                onPress={handleStartNew}
-                activeOpacity={0.7}
-              >
+              <Text style={styles.formTitle}>DAILY PRE-TASK CHECKLIST</Text>
+              <View style={styles.addIconContainer}>
                 <IconSymbol
                   ios_icon_name="plus.circle.fill"
                   android_material_icon_name="add-circle"
                   size={32}
                   color={colors.primary}
                 />
-                <Text style={styles.preTaskButtonText}>Start New</Text>
-              </TouchableOpacity>
-            </View>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.formCard}
+              onPress={() => router.push('/time-cards-1')}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.formTitle}>TIME-CARDS</Text>
+              <View style={styles.addIconContainer}>
+                <IconSymbol
+                  ios_icon_name="plus.circle.fill"
+                  android_material_icon_name="add-circle"
+                  size={32}
+                  color={colors.primary}
+                />
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.formCard}
+              onPress={() => router.push('/daily-activity-log-1')}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.formTitle}>DAILY ACTIVITY LOG</Text>
+              <View style={styles.addIconContainer}>
+                <IconSymbol
+                  ios_icon_name="plus.circle.fill"
+                  android_material_icon_name="add-circle"
+                  size={32}
+                  color={colors.primary}
+                />
+              </View>
+            </TouchableOpacity>
+
+            <Text style={[styles.sectionTitle, styles.sectionTitleMargin]}>
+              Completed Forms
+            </Text>
+            
+            {completedForms.length === 0 ? (
+              <Text style={styles.emptyText}>No completed forms yet</Text>
+            ) : (
+              <React.Fragment>
+                {completedForms.map((form, index) => (
+                  <View key={index} style={styles.completedCard}>
+                    <View style={styles.completedCardContent}>
+                      <Text style={styles.completedFormTitle}>
+                        {form.type === 'ptp' && 'Daily Pre-Task Checklist'}
+                        {form.type === 'timecard' && 'Time-Cards'}
+                        {form.type === 'activitylog' && 'Daily Activity Log'}
+                      </Text>
+                      <Text style={styles.submittedDate}>
+                        Submitted on: {form.display_time}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.editButton}
+                      onPress={() => {
+                        if (form.type === 'ptp') {
+                          handleEditPtpPress(form.id);
+                        } else if (form.type === 'timecard') {
+                          handleEditTimeCardPress(form.id);
+                        } else if (form.type === 'activitylog') {
+                          handleEditActivityLogPress(form.id);
+                        }
+                      }}
+                    >
+                      <Text style={styles.editButtonText}>EDIT</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </React.Fragment>
+            )}
           </View>
-        </View>
-      </Modal>
+        ) : (
+          <View>
+            <Text style={styles.sectionTitle}>Manage Job-Site</Text>
+            {manageJobSiteForms.map((form, index) => (
+              <TouchableOpacity
+                key={index}
+                style={styles.formCard}
+                onPress={() => handleFormPress(form.titleKey, form.id, 'moreForms')}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.formTitle}>{form.titleKey}</Text>
+                <View style={styles.addIconContainer}>
+                  <IconSymbol
+                    ios_icon_name="plus.circle.fill"
+                    android_material_icon_name="add-circle"
+                    size={32}
+                    color={colors.primary}
+                  />
+                </View>
+              </TouchableOpacity>
+            ))}
+
+            <Text style={[styles.sectionTitle, styles.sectionTitleMargin]}>
+              Safety
+            </Text>
+            {safetyForms.map((form, index) => (
+              <TouchableOpacity
+                key={index}
+                style={styles.formCard}
+                onPress={() => handleFormPress(form.titleKey, form.id, 'moreForms')}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.formTitle}>{form.titleKey}</Text>
+                <View style={styles.addIconContainer}>
+                  <IconSymbol
+                    ios_icon_name="plus.circle.fill"
+                    android_material_icon_name="add-circle"
+                    size={32}
+                    color={colors.primary}
+                  />
+                </View>
+              </TouchableOpacity>
+            ))}
+
+            <Text style={[styles.sectionTitle, styles.sectionTitleMargin]}>
+              Completed Forms
+            </Text>
+            
+            {/* Hauling Dumpsters - existing implementation */}
+            {haulingRequests.map((request, index) => (
+              <View key={index} style={styles.completedFormCard}>
+                <View style={styles.completedFormHeader}>
+                  <Text style={styles.completedFormTitle}>Hauling Dumpsters</Text>
+                  <View
+                    style={[
+                      styles.statusPill,
+                      { backgroundColor: getStatusColor(request.status) },
+                    ]}
+                  >
+                    <Text style={styles.statusPillText}>
+                      {getStatusLabel(request.status)}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.completedFormSubtitle}>
+                  Submitted on: {formatSubmittedDate(request.submitted_time)}
+                </Text>
+              </View>
+            ))}
+
+            {/* Injury Reports - new implementation */}
+            {injuryReports.map((report, index) => (
+              <View key={index} style={styles.completedFormCard}>
+                <View style={styles.completedFormHeader}>
+                  <Text style={styles.completedFormTitle}>Report an Injury</Text>
+                  <View
+                    style={[
+                      styles.statusPill,
+                      { backgroundColor: getStatusColor(report.status) },
+                    ]}
+                  >
+                    <Text style={styles.statusPillText}>
+                      {getStatusLabel(report.status)}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.completedFormSubtitle}>
+                  Submitted on: {formatInjuryReportDate(report)}
+                </Text>
+              </View>
+            ))}
+
+            {haulingRequests.length === 0 && injuryReports.length === 0 && (
+              <Text style={styles.emptyText}>No completed forms yet</Text>
+            )}
+          </View>
+        )}
+      </ScrollView>
     </View>
   );
 }
@@ -866,7 +663,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
-    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.05)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
     elevation: 2,
   },
   tabActive: {
@@ -888,12 +688,11 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
   },
   sectionTitle: {
-    fontSize: 12,
+    fontSize: 16,
     fontWeight: '700',
     color: colors.text,
     marginBottom: 12,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   sectionTitleMargin: {
     marginTop: 24,
@@ -906,7 +705,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
     elevation: 3,
   },
   formTitle: {
@@ -918,26 +720,6 @@ const styles = StyleSheet.create({
   },
   addIconContainer: {
     marginLeft: 12,
-  },
-  loadingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-    gap: 12,
-  },
-  loadingText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  emptyCompletedContainer: {
-    padding: 20,
-    alignItems: 'center',
-  },
-  emptyCompletedText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
   },
   completedCard: {
     backgroundColor: colors.highlight,
@@ -951,28 +733,11 @@ const styles = StyleSheet.create({
   completedCardContent: {
     flex: 1,
   },
-  completedTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 4,
-  },
   completedFormTitle: {
     fontSize: 14,
     fontWeight: '600',
     color: colors.text,
-  },
-  editedBadge: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  editedBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.card,
-    letterSpacing: 0.5,
+    marginBottom: 4,
   },
   submittedDate: {
     fontSize: 12,
@@ -991,160 +756,38 @@ const styles = StyleSheet.create({
     color: colors.primary,
     letterSpacing: 0.5,
   },
-  statusIndicator: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-    backgroundColor: colors.card,
-    marginLeft: 12,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-start',
-    alignItems: 'flex-end',
-    paddingTop: Platform.OS === 'android' ? 48 : 60,
-    paddingRight: 20,
-  },
-  settingsMenu: {
-    backgroundColor: colors.card,
+  completedFormCard: {
+    backgroundColor: colors.highlight,
     borderRadius: 12,
     padding: 16,
-    minWidth: 280,
-    maxWidth: 320,
-    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.2)',
-    elevation: 8,
-  },
-  settingsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  settingsTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  closeButton: {
-    padding: 4,
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    gap: 12,
-  },
-  menuItemText: {
-    fontSize: 16,
-    color: colors.text,
-    fontWeight: '500',
-  },
-  languageSection: {
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-  },
-  languageLabel: {
-    fontSize: 16,
-    color: colors.text,
-    fontWeight: '500',
     marginBottom: 12,
   },
-  languageToggle: {
-    flexDirection: 'row',
-    backgroundColor: colors.highlight,
-    borderRadius: 8,
-    padding: 4,
-    gap: 4,
-  },
-  languageButton: {
-    flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-    alignItems: 'center',
-  },
-  languageButtonActive: {
-    backgroundColor: colors.primary,
-  },
-  languageButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  languageButtonTextActive: {
-    color: colors.card,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginVertical: 8,
-  },
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    gap: 12,
-  },
-  logoutText: {
-    fontSize: 16,
-    color: colors.secondary,
-    fontWeight: '600',
-  },
-  preTaskOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  preTaskModalContainer: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 24,
-    width: '100%',
-    maxWidth: 400,
-    boxShadow: '0px 4px 16px rgba(0, 0, 0, 0.2)',
-    elevation: 8,
-  },
-  preTaskHeader: {
+  completedFormHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 8,
   },
-  preTaskTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.text,
+  completedFormSubtitle: {
+    fontSize: 12,
+    color: colors.textSecondary,
   },
-  preTaskButtonContainer: {
-    gap: 16,
-  },
-  preTaskOptionButton: {
-    backgroundColor: colors.background,
+  statusPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
     borderRadius: 12,
-    padding: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    borderWidth: 2,
-    borderColor: colors.border,
   },
-  preTaskButtonText: {
-    fontSize: 18,
+  statusPillText: {
+    fontSize: 11,
     fontWeight: '600',
-    color: colors.text,
-    flex: 1,
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    paddingVertical: 24,
+    fontStyle: 'italic',
   },
 });
