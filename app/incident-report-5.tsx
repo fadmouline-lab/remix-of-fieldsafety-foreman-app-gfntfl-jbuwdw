@@ -15,6 +15,7 @@ import { supabase } from '@/lib/supabase';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import * as FileSystem from 'expo-file-system/legacy';
+import { Buffer } from 'buffer';
 
 const styles = StyleSheet.create({
   container: {
@@ -193,30 +194,34 @@ export default function IncidentReportPage5() {
 
   const uploadPhoto = async (photoUri: string): Promise<{ storage_path: string; mime_type: string } | null> => {
     try {
-      // Read the file as base64
-      const base64 = await FileSystem.readAsStringAsync(photoUri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
+      console.log('Uploading photo:', photoUri);
 
-      // Generate a unique filename
-      const timestamp = Date.now();
-      const randomString = Math.random().toString(36).substring(7);
-      const fileName = `${timestamp}_${randomString}.jpg`;
-      const filePath = `${fileName}`;
-
-      // Convert base64 to blob
-      const byteCharacters = atob(base64);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      // Extract base64 data from URI
+      // Handle both data URI format (data:image/jpeg;base64,/9j/4AAQ...) and plain base64
+      let base64Data = photoUri;
+      if (photoUri.includes(',')) {
+        base64Data = photoUri.split(',')[1];
+      } else if (photoUri.startsWith('file://')) {
+        // If it's a file URI, read it as base64
+        base64Data = await FileSystem.readAsStringAsync(photoUri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
       }
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: 'image/jpeg' });
 
-      // Upload to Supabase Storage
+      // Convert base64 to bytes using Buffer (React Native compatible)
+      const bytes = Buffer.from(base64Data, 'base64');
+
+      // Generate unique filename
+      const timestamp = Date.now();
+      const randomId = Math.random().toString(36).substring(7);
+      const storagePath = `${currentEmployee?.org_id}/${currentProject?.id}/${timestamp}-${randomId}.jpg`;
+
+      console.log('Uploading to storage path:', storagePath);
+
+      // Upload to Supabase Storage with bytes
       const { data, error } = await supabase.storage
         .from('injury-report-photos')
-        .upload(filePath, blob, {
+        .upload(storagePath, bytes, {
           contentType: 'image/jpeg',
           upsert: false,
         });
@@ -225,6 +230,8 @@ export default function IncidentReportPage5() {
         console.error('Photo upload error:', error);
         throw error;
       }
+
+      console.log('Photo uploaded successfully:', data.path);
 
       return {
         storage_path: data.path,
@@ -251,14 +258,21 @@ export default function IncidentReportPage5() {
     setLoading(true);
 
     try {
+      console.log('Starting injury report submission...');
+
       // Upload photos first
       const uploadedPhotos: { storage_path: string; mime_type: string }[] = [];
       for (const photo of photos) {
+        console.log('Processing photo:', photo);
         const uploadedPhoto = await uploadPhoto(photo.uri);
         if (uploadedPhoto) {
           uploadedPhotos.push(uploadedPhoto);
+        } else {
+          console.warn('Failed to upload photo:', photo.uri);
         }
       }
+
+      console.log('Uploaded photos:', uploadedPhotos);
 
       // Build injured employees payload
       const injuredEmployees = selectedEmployees.map((empId: string) => {
@@ -407,7 +421,7 @@ export default function IncidentReportPage5() {
         materials: materialsPayload,
       };
 
-      console.log('Submitting injury report payload:', payload);
+      console.log('Submitting injury report payload:', JSON.stringify(payload, null, 2));
 
       // Get the current session for authorization
       const { data: { session } } = await supabase.auth.getSession();
@@ -484,8 +498,8 @@ export default function IncidentReportPage5() {
           {selectedEmployees.length > 0 && (
             <View style={styles.row}>
               <Text style={styles.label}>Injured Employees</Text>
-              {selectedEmployees.map((id: string) => (
-                <Text key={id} style={styles.listItem}>• {getEmployeeName(id)}</Text>
+              {selectedEmployees.map((id: string, index: number) => (
+                <Text key={index} style={styles.listItem}>• {getEmployeeName(id)}</Text>
               ))}
             </View>
           )}
@@ -493,8 +507,8 @@ export default function IncidentReportPage5() {
           {subcontractorInjured === 'yes' && subcontractorEntries.length > 0 && (
             <View style={styles.row}>
               <Text style={styles.label}>Injured Subcontractors</Text>
-              {subcontractorEntries.map((entry: any) => (
-                <Text key={entry.id} style={styles.listItem}>
+              {subcontractorEntries.map((entry: any, index: number) => (
+                <Text key={index} style={styles.listItem}>
                   • {entry.companyId ? getSubcontractorName(entry.companyId) : entry.company} - {entry.workerNames}
                 </Text>
               ))}
@@ -504,8 +518,8 @@ export default function IncidentReportPage5() {
           {otherInjured.length > 0 && otherInjured.some((entry: any) => entry.name) && (
             <View style={styles.row}>
               <Text style={styles.label}>Other Injured Persons</Text>
-              {otherInjured.filter((entry: any) => entry.name).map((entry: any) => (
-                <Text key={entry.id} style={styles.listItem}>• {entry.name}</Text>
+              {otherInjured.filter((entry: any) => entry.name).map((entry: any, index: number) => (
+                <Text key={index} style={styles.listItem}>• {entry.name}</Text>
               ))}
             </View>
           )}
@@ -526,8 +540,8 @@ export default function IncidentReportPage5() {
           {selectedTasks.length > 0 && (
             <View style={styles.row}>
               <Text style={styles.label}>Tasks Being Performed</Text>
-              {selectedTasks.map((id: string) => (
-                <Text key={id} style={styles.listItem}>• {getTaskName(id)}</Text>
+              {selectedTasks.map((id: string, index: number) => (
+                <Text key={index} style={styles.listItem}>• {getTaskName(id)}</Text>
               ))}
             </View>
           )}
@@ -540,16 +554,16 @@ export default function IncidentReportPage5() {
           {anyWitnesses === 'yes' && witnesses.length > 0 && (
             <View style={styles.row}>
               <Text style={styles.label}>Witnesses</Text>
-              {witnesses.map((witness: any) => {
+              {witnesses.map((witness: any, index: number) => {
                 if (witness.isEmployee === 'yes' && witness.employeeId) {
                   return (
-                    <Text key={witness.id} style={styles.listItem}>
+                    <Text key={index} style={styles.listItem}>
                       • {getWitnessEmployeeName(witness.employeeId)} (Employee)
                     </Text>
                   );
                 } else if (witness.isEmployee === 'no' && witness.name) {
                   return (
-                    <Text key={witness.id} style={styles.listItem}>
+                    <Text key={index} style={styles.listItem}>
                       • {witness.name} - {witness.phone}
                     </Text>
                   );
@@ -568,8 +582,8 @@ export default function IncidentReportPage5() {
             {equipmentInvolved === 'yes' && selectedEquipment.length > 0 && (
               <View style={styles.row}>
                 <Text style={styles.label}>Equipment Involved</Text>
-                {selectedEquipment.map((id: string) => (
-                  <Text key={id} style={styles.listItem}>• {getEquipmentName(id)}</Text>
+                {selectedEquipment.map((id: string, index: number) => (
+                  <Text key={index} style={styles.listItem}>• {getEquipmentName(id)}</Text>
                 ))}
               </View>
             )}
@@ -577,8 +591,8 @@ export default function IncidentReportPage5() {
             {materialsInvolved === 'yes' && selectedMaterials.length > 0 && (
               <View style={styles.row}>
                 <Text style={styles.label}>Materials Involved</Text>
-                {selectedMaterials.map((id: string) => (
-                  <Text key={id} style={styles.listItem}>• {getMaterialName(id)}</Text>
+                {selectedMaterials.map((id: string, index: number) => (
+                  <Text key={index} style={styles.listItem}>• {getMaterialName(id)}</Text>
                 ))}
               </View>
             )}
