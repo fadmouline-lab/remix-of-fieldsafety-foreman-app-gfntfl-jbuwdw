@@ -233,12 +233,18 @@ export default function IncidentReportPage1() {
     });
   };
 
+  const handleBack = () => {
+    // Navigate directly to the dashboard to exit the workflow
+    // This prevents the infinite loop when coming back from Page 2
+    router.replace('/(tabs)/(home)');
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => router.back()}
+          onPress={handleBack}
         >
           <IconSymbol 
             ios_icon_name="chevron.left" 
